@@ -616,7 +616,13 @@ window.onerror=function(m,s,l){var e=document.getElementById("err");if(e){e.styl
     tick=setInterval(loop,200);$("startBtn").textContent="一時停止";$("startBtn").classList.add("running");reqWake();}
   function stopRun(){running=false;clearInterval(tick);
     $("startBtn").textContent="再開";$("startBtn").classList.remove("running");relWake();updateBakeWarn();}
-  function toggleRun(){if(running)stopRun();else startRun();}
+  function toggleRun(){
+    /* 投入カウントダウン中に「スタート」＝カウントダウンを飛ばして即投入。
+       これをしないと cdTick(100ms,「投入まで N」) と tick(200ms,「00:00」) が
+       同じ #timer に交互に書き込んで画面が激しく点滅する（点滅バグ修正）。*/
+    if(cdActive){ cancelCountdown(); doCharge(); return; }
+    if(running)stopRun();else startRun();
+  }
   function resetTime(){elapsed=0;t0=nowSec();$("timer").textContent="00:00";}
   function loop(){
     elapsed=nowSec()-t0;$("timer").textContent=fmt(elapsed);drawGraph();updateLiveDtr();updateBakeWarn();
