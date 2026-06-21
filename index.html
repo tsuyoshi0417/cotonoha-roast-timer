@@ -9,7 +9,7 @@
   :root{
     --bg:#f4f1e8; --panel:#fbf9f3; --panel2:#efe9da;
     --ink:#2b2823; --sub:#7c7464; --line:#e0d9c8;
-    --accent:#427e89; --accent2:#a98b3c; --ok:#427e89; --warn:#a85a3c;
+    --accent:#3d7a8a; --accent2:#a6822f; --ok:#3d7a8a; --warn:#a85a3c;
   }
   *{box-sizing:border-box;-webkit-tap-highlight-color:transparent}
   body{margin:0;background:var(--bg);color:var(--ink);
@@ -270,6 +270,12 @@
         <label>温度カーブ（随時更新）</label>
         <canvas id="graph" style="width:100%;height:170px;display:block"></canvas>
         <div style="margin-top:10px"><label>現在温度 (℃)</label><input id="curTemp" type="number" inputmode="decimal" placeholder="まず今の温度を入れる"></div>
+        <div class="ctrl" style="margin-top:8px">
+          <button type="button" id="m10" style="color:var(--accent)">−10℃</button>
+          <button type="button" id="m5" style="color:var(--accent)">−5℃</button>
+          <button type="button" id="m3" style="color:var(--accent)">−3℃</button>
+          <button type="button" id="m1" style="color:var(--accent)">−1℃</button>
+        </div>
         <div class="ctrl" style="margin-top:8px">
           <button type="button" id="p3">＋3℃</button>
           <button type="button" id="p5">＋5℃</button>
@@ -808,22 +814,47 @@ window.onerror=function(m,s,l){var e=document.getElementById("err");if(e){e.styl
       for(i=0;i<c2.length;i++){ var qx=PX(c2[i].t), qy=PY(c2[i].temp); if(i===0)x.moveTo(qx,qy); else x.lineTo(qx,qy); }
       x.stroke();
     }
-    /* 節目ライン（1ハゼ・煎り止め）*/
-    var evk=["fc","drop"], evColor={fc:"rgba(168,90,60,.55)",drop:"rgba(66,126,137,.65)"};
-    for(i=0;i<evk.length;i++){ var mk=marks[evk[i]]; if(mk!==undefined){ x.strokeStyle=evColor[evk[i]]; x.lineWidth=1; x.beginPath(); var xx=PX(mk); x.moveTo(xx,padT); x.lineTo(xx,padT+pH); x.stroke(); } }
-    /* 火力変更マーカー＝ティール/青系の縦線（節目のaccent色と混同しないよう別色）＋下部に小ラベル */
+    /* 節目ライン（中点・1ハゼ開始/終了・2ハゼ・煎り止め）。
+       色の役割分担：ハゼ系＝錆赤の濃淡で「帯」／煎り止め＝ティール（終端）／中点＝青灰の実線。
+       太さで重要度＝煎り止め > 1ハゼ・2ハゼ > 中点・1ハゼ終了。ラベルは要所だけ1文字。
+       中点(青灰・実線)と火力(青灰・点線)は同系色でも線種で分離する。*/
+    var evSpec=[
+      {k:"bottom", col:"rgba(58,74,78,.55)",  w:1.5, lab:""},   // 中点＝青灰・実線・控えめ
+      {k:"fc",     col:"rgba(168,90,60,.85)", w:2,   lab:"1"},  // 1ハゼ開始＝錆赤・濃
+      {k:"fce",    col:"rgba(168,90,60,.40)", w:1,   lab:""},   // 1ハゼ終了＝錆赤・薄（帯）
+      {k:"sc",     col:"rgba(168,90,60,.85)", w:1.5, lab:"2"},  // 2ハゼ開始＝錆赤・濃
+      {k:"drop",   col:"rgba(61,122,138,.95)",w:2.5, lab:"止"}  // 煎り止め＝ティール・最も濃く太く
+    ];
+    x.font="bold 9px sans-serif"; x.textAlign="center";
+    for(i=0;i<evSpec.length;i++){
+      var es=evSpec[i], mk=marks[es.k];
+      if(mk!==undefined){
+        var ex=PX(mk);
+        x.strokeStyle=es.col; x.lineWidth=es.w; x.beginPath();
+        x.moveTo(ex,padT); x.lineTo(ex,padT+pH); x.stroke();
+        if(es.lab){
+          /* ラベルは下部に置く（スマホ縦で上のタイマーパネルに隠れないため）。
+             火力ラベル(最下部 padT+pH-2)より一段上に出して重ならないようにする。*/
+          var lx=Math.min(Math.max(ex,padL+6), padL+pW-6), ly=padT+pH-13;
+          x.fillStyle="rgba(244,241,232,.85)"; x.fillRect(lx-5,ly-9,10,12); // 生成りの下地で可読性確保
+          x.fillStyle=es.col; x.fillText(es.lab, lx, ly);
+        }
+      }
+    }
+    x.textAlign="start";
+    /* 火力変更マーカー＝青灰・点線・薄（＝「人の操作」の裏方の色。節目の実線と線種で分離）＋下部に火力値ラベル */
     if(flames.length>0){
       var fx, prevLabelX=-999, lab;
       x.font="9px sans-serif";
       for(i=0;i<flames.length;i++){
         fx=PX(flames[i].t);
-        x.strokeStyle="rgba(150,120,70,.55)"; x.lineWidth=1; x.setLineDash([3,3]);
+        x.strokeStyle="rgba(58,74,78,.40)"; x.lineWidth=1; x.setLineDash([2,3]);
         x.beginPath(); x.moveTo(fx,padT); x.lineTo(fx,padT+pH); x.stroke();
         x.setLineDash([]);
         lab=String(flames[i].level||"");
         /* ラベルが詰まりすぎたら間引く（直前ラベルと近すぎたら出さない）*/
         if(fx-prevLabelX>=14){
-          x.fillStyle="rgba(120,95,50,.95)";
+          x.fillStyle="rgba(58,74,78,.85)";
           x.fillText(lab, Math.min(fx+1, padL+pW-12), padT+pH-2);
           prevLabelX=fx;
         }
@@ -831,9 +862,9 @@ window.onerror=function(m,s,l){var e=document.getElementById("err");if(e){e.styl
     }
     /* 現在カーブ＝濃く前面に */
     if(series.length>0){
-      x.strokeStyle="#427e89"; x.lineWidth=2; x.beginPath();
+      x.strokeStyle="#3d7a8a"; x.lineWidth=2; x.beginPath();
       for(i=0;i<series.length;i++){ var px=PX(series[i].t), py=PY(series[i].temp); if(i===0)x.moveTo(px,py); else x.lineTo(px,py); }
-      x.stroke(); x.fillStyle="#427e89";
+      x.stroke(); x.fillStyle="#3d7a8a";
       for(i=0;i<series.length;i++){ x.beginPath(); x.arc(PX(series[i].t),PY(series[i].temp),2.5,0,6.3); x.fill(); }
     } else if(past.length===0){ x.fillStyle="#a89e88"; x.fillText("温度を記録すると曲線が出ます",padL+8,padT+pH/2); }
   }
@@ -956,6 +987,11 @@ window.onerror=function(m,s,l){var e=document.getElementById("err");if(e){e.styl
   $("p3").addEventListener("click",function(){addTemp(3);});
   $("p5").addEventListener("click",function(){addTemp(5);});
   $("p10").addEventListener("click",function(){addTemp(10);});
+  /* マイナス（投入直後〜中点の下降を記録する）。＋と同じく現在温度欄に積む */
+  $("m1").addEventListener("click",function(){addTemp(-1);});
+  $("m3").addEventListener("click",function(){addTemp(-3);});
+  $("m5").addEventListener("click",function(){addTemp(-5);});
+  $("m10").addEventListener("click",function(){addTemp(-10);});
   $("pNow").addEventListener("click",function(){recordPoint(parseFloat($("curTemp").value));});
   var _bakeOn=$("bakeOn"); if(_bakeOn)_bakeOn.addEventListener("change",updateBakeWarn);
   /* 投入後に投入温度欄を変えたら、カーブの開始点(series[0])とtemps.chargeも追従させる */
