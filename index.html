@@ -75,7 +75,7 @@
   .ev button{padding:9px;font-size:13px;background:var(--accent);color:#ffffff;border:0}
   .ev input{padding:8px;font-size:15px;text-align:center}
   .ev.done{border-color:var(--accent)}
-  /* 焼く中の節目＝大ボタン（温度欄なし・遠目で押せる）*/
+  /* 焙煎中の節目＝大ボタン（温度欄なし・遠目で押せる）*/
   .events.big .ev{padding:16px;gap:8px}
   .events.big .ev b{font-size:16px}
   .events.big .ev .t{font-size:24px}
@@ -104,26 +104,26 @@
   .err{display:none;background:#f7e3da;border:1px solid var(--warn);color:#8a3d23;
     padding:10px;border-radius:10px;font-size:12px;margin-bottom:12px;white-space:pre-wrap}
 
-  /* 広い画面（iPad）＝中央寄せで読みやすい幅に保つ（焼く前/後は縦1カラムのまま）*/
+  /* 広い画面（iPad）＝中央寄せで読みやすい幅に保つ（焙煎前/後は縦1カラムのまま）*/
   @media (min-width:700px){
     body{max-width:820px}
     .panel.sticky{top:64px}
   }
 
-  /* ============ 焼く中だけ：iPad（両向き）で1画面に収める2カラム ============
+  /* ============ 焙煎中だけ：iPad（両向き）で1画面に収める2カラム ============
      左＝タイマー+操作+節目2×3／右＝火力+温度カーブ+温度記録+進行中DTR
      収めるためフォントは触らず、余白・gap・padding・グラフ高だけ詰める。
      狭い画面（スマホ）は従来どおり縦1カラム（スクロール許容）。*/
   @media (min-width:820px){
     body{max-width:980px;padding-top:6px;padding-bottom:0}
-    /* 焼く中を1画面に収めるためヘッダの余白だけ少し詰める（焼く前/後は縦長なので影響なし）*/
+    /* 焙煎中を1画面に収めるためヘッダの余白だけ少し詰める（焙煎前/後は縦長なので影響なし）*/
     .tag{margin-bottom:6px}
-    /* モードバーも焼く中1画面のため詰める（高さを取りすぎない）*/
+    /* モードバーも焙煎中1画面のため詰める（高さを取りすぎない）*/
     .modebar{margin:2px 0 4px}
     .modebtn{padding:7px 6px;min-height:36px;font-size:15px}
     .tabbar{margin:4px 0 8px;padding:4px 0}
     .tabbtn{padding:10px 6px;min-height:44px}
-    /* 焼く前/後は従来の読みやすい幅に保つ（焼く中だけ全幅2カラム）*/
+    /* 焙煎前/後は従来の読みやすい幅に保つ（焙煎中だけ全幅2カラム）*/
     #tabBefore, #tabAfter{max-width:820px;margin-left:auto;margin-right:auto}
     #tabDuring.active{
       display:grid;
@@ -143,16 +143,22 @@
     #tabDuring .panel{padding:10px}
     #tabDuring .timer{margin:0 0 4px}
     #tabDuring .ctrl{margin-bottom:0}
-    /* 焼く中はトグルが2行（30秒ビープ＋ベイク注意）＝行間を詰めてiPad1画面を維持 */
+    /* 焙煎中はトグルが2行（30秒ビープ＋ベイク注意）＝行間を詰めてiPad1画面を維持 */
     #tabDuring .toggle{margin-top:4px}
+    /* 投入温度の1行も詰める（iPad1画面・スクロール無しを維持）*/
+    #tabDuring .chargerow{margin:2px 0}
+    #tabDuring .chargerow input{padding:3px 6px;font-size:14px}
+    #tabDuring .chargerow label{font-size:11px}
     /* 節目（左）＝カードのpadding/gapだけ詰める。ボタンmin-height56pxは死守 */
-    #tabDuring .events{gap:5px}
-    #tabDuring .events.big .ev{padding:3px;gap:3px}
-    #tabDuring .panel > label{margin-bottom:3px}
-    /* 左カラムの節目パネル自体のpaddingも少し詰める（モードバー分を吸収・56pxボタンは維持）*/
-    #tabDuring > .panel:nth-child(2){padding:8px}
-    /* 右カラム＝グラフ高と余白を詰める */
-    #tabDuring #graph{height:82px !important}
+    #tabDuring .events{gap:3px}
+    #tabDuring .events.big .ev{padding:2px;gap:2px}
+    /* 時刻表示は少し小さく（節目名とボタンが主役・投入温度1行ぶんを吸収）*/
+    #tabDuring .events.big .ev .t{font-size:18px}
+    #tabDuring .panel > label{margin-bottom:2px}
+    /* 左カラムの節目パネル自体のpaddingも少し詰める（投入温度1行ぶんも吸収・56pxボタンは維持）*/
+    #tabDuring > .panel:nth-child(2){padding:6px}
+    /* 右カラム＝グラフ高と余白を詰める（投入温度1行ぶんを吸収）*/
+    #tabDuring #graph{height:64px !important}
     #tabDuring .ldtr{margin-top:6px;padding:9px}
     #tabDuring .note{margin-top:4px}
   }
@@ -173,19 +179,19 @@
     <button type="button" class="modebtn" id="modeBtnBrew" data-mode="brew">淹れる・味わう</button>
   </div>
 
-  <!-- ============ モード：焙煎する（既存の焼く前/中/後をそのまま包む）============ -->
+  <!-- ============ モード：焙煎する（既存の焙煎前/中/後をそのまま包む）============ -->
   <div class="mode active" id="modeRoast">
 
   <!-- 3フェーズのタブ（最上部・タイマーのさらに上）-->
   <div class="tabbar" id="tabbar">
-    <button type="button" class="tabbtn cur" id="tabBtnBefore" data-tab="before">焼く前</button>
-    <button type="button" class="tabbtn" id="tabBtnDuring" data-tab="during">焼く中</button>
-    <button type="button" class="tabbtn" id="tabBtnAfter" data-tab="after">焼いた後</button>
+    <button type="button" class="tabbtn cur" id="tabBtnBefore" data-tab="before">焙煎前</button>
+    <button type="button" class="tabbtn" id="tabBtnDuring" data-tab="during">焙煎中</button>
+    <button type="button" class="tabbtn" id="tabBtnAfter" data-tab="after">焙煎後</button>
   </div>
 
   <div class="app">
 
-    <!-- ============ 焼く前 ============ -->
+    <!-- ============ 焙煎前 ============ -->
     <div class="tab active" id="tabBefore">
 
       <div class="panel" id="syncPanel" style="display:none">
@@ -215,12 +221,12 @@
           <div><label>生豆量 (g)</label><input id="green" type="number" inputmode="decimal" value="150"></div>
           <div><label>室温 (℃)</label><input id="room" type="number" inputmode="decimal" value="20"></div>
         </div>
-        <div class="note" style="margin-top:12px">準備ができたら「焼く中」へ。<b>スタートか投入の記録で自動的に「焼く中」に切り替わります。</b></div>
+        <div class="note" style="margin-top:12px">準備ができたら「焙煎中」へ。<b>スタートか投入の記録で自動的に「焙煎中」に切り替わります。</b></div>
       </div>
 
     </div>
 
-    <!-- ============ 焼く中（最小・これだけ）============ -->
+    <!-- ============ 焙煎中（最小・これだけ）============ -->
     <div class="tab" id="tabDuring">
 
       <div class="panel sticky">
@@ -229,12 +235,16 @@
           <button class="start" id="startBtn" type="button">スタート</button>
           <button class="reset" id="resetBtn" type="button">リセット</button>
         </div>
+        <div class="chargerow" style="display:flex;align-items:center;gap:8px;margin:6px 0 2px">
+          <label for="chargeTemp" style="margin:0;flex:0 0 auto;white-space:nowrap">投入温度(℃)</label>
+          <input id="chargeTemp" type="number" inputmode="decimal" value="160" style="flex:1;min-width:0;padding:8px;text-align:center">
+        </div>
         <div class="toggle"><input type="checkbox" id="beep"><label for="beep" style="margin:0">30秒ごとに音で知らせる</label></div>
         <div class="toggle"><input type="checkbox" id="bakeOn" checked><label for="bakeOn" style="margin:0">長丁場のとき“ベイク注意”を出す</label></div>
       </div>
 
       <div class="panel">
-        <label style="margin-bottom:8px">節目（タップ＝その時刻を即記録。温度は「焼いた後」で落ち着いて）</label>
+        <label style="margin-bottom:8px">節目（タップ＝その時刻を即記録。温度は「焙煎後」で落ち着いて）</label>
         <div class="events big" id="events"></div>
       </div>
 
@@ -268,7 +278,7 @@
 
     </div>
 
-    <!-- ============ 焼いた後 ============ -->
+    <!-- ============ 焙煎後 ============ -->
     <div class="tab" id="tabAfter">
 
       <div class="panel">
@@ -284,7 +294,7 @@
       </div>
 
       <div class="panel">
-        <label style="margin-bottom:8px">各節目（時刻はそのまま・ここで温度を落ち着いて入れる）</label>
+        <label style="margin-bottom:8px">各節目（時刻はそのまま・ここで温度を落ち着いて入れる＝「焙煎後」で記録）</label>
         <div class="events" id="eventsAfter"></div>
       </div>
 
@@ -389,11 +399,11 @@ window.onerror=function(m,s,l){var e=document.getElementById("err");if(e){e.styl
   }
 
   /* ---- 節目カード（2ビュー）----
-     焼く中（#events.big）＝大ボタン・温度欄なし・時刻だけ即記録
-     焼いた後（#eventsAfter）＝時刻表示＋温度入力欄（落ち着いて温度を入れる）
+     焙煎中（#events.big）＝大ボタン・温度欄なし・時刻だけ即記録
+     焙煎後（#eventsAfter）＝時刻表示＋温度入力欄（落ち着いて温度を入れる）
      どちらも同じ marks/temps を共有。押したカードだけ更新＝温度入力を壊さない */
   function renderEvents(){
-    /* 焼く中＝大ボタン・温度欄なし */
+    /* 焙煎中＝大ボタン・温度欄なし */
     var wrap=$("events");wrap.innerHTML="";cards={};
     for(var i=0;i<EVENTS.length;i++){(function(e){
       var done=(marks[e.key]!==undefined);
@@ -406,7 +416,7 @@ window.onerror=function(m,s,l){var e=document.getElementById("err");if(e){e.styl
       cards[e.key]={div:div,t:div.querySelector(".t"),btn:btn};
       wrap.appendChild(div);
     })(EVENTS[i]);}
-    /* 焼いた後＝時刻＋温度入力 */
+    /* 焙煎後＝時刻＋温度入力 */
     var wrapA=$("eventsAfter");if(wrapA){wrapA.innerHTML="";cardsA={};
       for(var j=0;j<EVENTS.length;j++){(function(e){
         var done=(marks[e.key]!==undefined);
@@ -424,7 +434,18 @@ window.onerror=function(m,s,l){var e=document.getElementById("err");if(e){e.styl
     }
   }
   function mark(key){
-    if(key==="charge"){resetTime();marks.charge=0;if(!running)startRun();showMode("roast");showTab("during");}
+    if(key==="charge"){
+      resetTime();marks.charge=0;
+      /* 投入温度を温度カーブの開始点(t=0)に置く＝カーブが投入温度から始まる。
+         以降の現在温度＋3/＋5/＋10はその上に積む。temps.chargeにも入れて焙煎後の投入温度欄へ反映 */
+      var ct=num("chargeTemp");
+      if(ct!==null){
+        series=[{t:0,temp:ct}]; temps.charge=String(ct); $("curTemp").value=ct;
+        /* 焙煎後の投入温度欄にも即反映（renderEventsの再描画を待たない）*/
+        var caC=cardsA.charge; if(caC){ var inpC=caC.div.querySelector("input"); if(inpC)inpC.value=ct; }
+      }
+      if(!running)startRun();showMode("roast");showTab("during");drawGraph();
+    }
     else{marks[key]=elapsed;if(key==="drop"){stopRun();showTab("after");}}
     var c=cards[key];
     if(c){c.div.className="ev done";c.t.textContent=fmt(marks[key]);c.btn.textContent="記録し直す";}
@@ -493,7 +514,7 @@ window.onerror=function(m,s,l){var e=document.getElementById("err");if(e){e.styl
       if(panel){ if(n===name)panel.classList.add("active");else panel.classList.remove("active"); }
       if(btn){ if(n===name)btn.classList.add("cur");else btn.classList.remove("cur"); }
     }
-    if(name==="during"){ drawGraph(); }     // 焼く中表示時にカーブを描き直す（非表示時の幅0対策）
+    if(name==="during"){ drawGraph(); }     // 焙煎中表示時にカーブを描き直す（非表示時の幅0対策）
     try{ window.scrollTo(0,0); }catch(e){}
   }
 
@@ -512,7 +533,7 @@ window.onerror=function(m,s,l){var e=document.getElementById("err");if(e){e.styl
   }
 
   /* ---- ベイク注意（ソフト・トリガー時だけ細い1行バナー）----
-     条件：焼く中（running）かつ 煎り止め(drop)未記録 かつ elapsed≥しきい値。
+     条件：焙煎中（running）かつ 煎り止め(drop)未記録 かつ elapsed≥しきい値。
      OFF（チェックなし）なら一切出さない。普段は display:none＝高さを取らない。 */
   function updateBakeWarn(){
     var box=$("bakeWarn"); if(!box)return;
@@ -562,7 +583,7 @@ window.onerror=function(m,s,l){var e=document.getElementById("err");if(e){e.styl
     selProc="";$("procOther").value="";$("procOther").style.display="none";
     selHeat="";
     var all=document.querySelectorAll(".chip");for(var k=0;k<all.length;k++)all[k].classList.remove("sel");
-    series=[];flames=[];$("curTemp").value="";
+    series=[];flames=[];$("curTemp").value="";$("chargeTemp").value="160";
     $("timer").textContent="00:00";renderEvents();recalc();onBeanChange();updateLiveDtr();updateBakeWarn();
     showTab("before");
   }
@@ -865,6 +886,17 @@ window.onerror=function(m,s,l){var e=document.getElementById("err");if(e){e.styl
   $("p10").addEventListener("click",function(){addTemp(10);});
   $("pNow").addEventListener("click",function(){recordPoint(parseFloat($("curTemp").value));});
   var _bakeOn=$("bakeOn"); if(_bakeOn)_bakeOn.addEventListener("change",updateBakeWarn);
+  /* 投入後に投入温度欄を変えたら、カーブの開始点(series[0])とtemps.chargeも追従させる */
+  var _chargeTemp=$("chargeTemp"); if(_chargeTemp)_chargeTemp.addEventListener("input",function(){
+    if(marks.charge!==undefined){
+      var ct=num("chargeTemp");
+      if(ct!==null){
+        if(series.length>0 && series[0].t===0){ series[0].temp=ct; } else { series.unshift({t:0,temp:ct}); }
+        temps.charge=String(ct); drawGraph();
+        var ca=cardsA.charge; if(ca){ var inp=ca.div.querySelector("input"); if(inp)inp.value=ct; }
+      }
+    }
+  });
   $("bean").addEventListener("input",onBeanChange);
   $("bean").addEventListener("change",onBeanChange);
   window.addEventListener("resize",drawGraph);
@@ -886,7 +918,7 @@ window.onerror=function(m,s,l){var e=document.getElementById("err");if(e){e.styl
     b.addEventListener("click",function(){showSub(b.getAttribute("data-sub"));});
   })(_subBtns[_si]);}
   renderEvents();renderHist();refreshBeanList();recalc();onBeanChange();updateLiveDtr();updateBakeWarn();
-  showTab("before"); // 初期表示＝焼く前
+  showTab("before"); // 初期表示＝焙煎前
   showSub("cup");     // 淹れる・味わうの既定サブタブ＝カッピング
   showMode("roast");  // 既定モード＝焙煎する（既存挙動そのまま）
   Cloud.init(); // クラウド同期を起動（失敗してもここまでで本体は動いている）
