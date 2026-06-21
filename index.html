@@ -18,12 +18,14 @@
   h1{font-size:18px;font-weight:700;margin:2px 0 2px;letter-spacing:.04em}
   .tag{color:var(--sub);font-size:12px;margin-bottom:12px}
   .panel{background:var(--panel);border:1px solid var(--line);border-radius:14px;padding:14px;margin-bottom:12px}
+  .panel.sticky{position:-webkit-sticky;position:sticky;top:6px;z-index:10;
+    box-shadow:0 8px 20px rgba(0,0,0,.45)}
   label{display:block;font-size:12px;color:var(--sub);margin:0 0 4px}
   input,textarea{width:100%;background:var(--panel2);border:1px solid var(--line);
     color:var(--ink);border-radius:10px;padding:10px;font-size:16px;font-family:inherit}
   .row{display:flex;gap:10px}.row>div{flex:1}
-  .timer{font-variant-numeric:tabular-nums;font-size:64px;font-weight:700;text-align:center;
-    letter-spacing:.02em;margin:6px 0;color:var(--accent2)}
+  .timer{font-variant-numeric:tabular-nums;font-size:60px;font-weight:700;text-align:center;
+    letter-spacing:.02em;margin:2px 0 8px;color:var(--accent2)}
   .ctrl{display:flex;gap:10px;margin-bottom:4px}
   button{border:0;border-radius:12px;padding:14px;font-size:16px;font-weight:700;
     color:var(--ink);background:var(--panel2);border:1px solid var(--line);cursor:pointer;flex:1;font-family:inherit}
@@ -31,13 +33,17 @@
   .start{background:var(--ok);border-color:transparent;color:#10180c}
   .start.running{background:var(--warn);color:#fff}
   .reset{flex:.5;background:transparent;color:var(--sub)}
+  .chips{display:flex;flex-wrap:wrap;gap:8px;margin-top:2px}
+  .chip{flex:0 0 auto;padding:11px 16px;font-size:14px;font-weight:600;background:var(--panel2);
+    color:var(--ink);border:1px solid var(--line);border-radius:999px}
+  .chip.sel{background:var(--accent);color:#1b1207;border-color:transparent}
   .events{display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-top:4px}
   .ev{display:flex;flex-direction:column;align-items:stretch;gap:6px;background:var(--panel2);
     border:1px solid var(--line);border-radius:12px;padding:10px}
   .ev b{font-size:14px}
   .ev .t{font-variant-numeric:tabular-nums;font-size:20px;color:var(--accent2);font-weight:700}
   .ev button{padding:9px;font-size:13px;background:var(--accent);color:#1b1207;border:0}
-  .ev input{padding:6px;font-size:14px;text-align:center}
+  .ev input{padding:8px;font-size:15px;text-align:center}
   .ev.done{border-color:var(--accent)}
   .stat{display:flex;justify-content:space-between;font-size:15px;padding:8px 2px;border-bottom:1px solid var(--line)}
   .stat b{color:var(--accent2);font-variant-numeric:tabular-nums}
@@ -45,13 +51,10 @@
   .acts .save{background:var(--accent);color:#1b1207;border:0}
   .toggle{display:flex;align-items:center;gap:8px;color:var(--sub);font-size:13px;margin-top:8px}
   .toggle input{width:auto}
-  .chips{display:flex;flex-wrap:wrap;gap:8px;margin-top:2px}
-  .chip{flex:0 0 auto;padding:11px 16px;font-size:14px;font-weight:600;background:var(--panel2);
-    color:var(--ink);border:1px solid var(--line);border-radius:999px}
-  .chip.sel{background:var(--accent);color:#1b1207;border-color:transparent}
   .hist{font-size:13px;color:var(--sub)}
   .hist div{padding:6px 0;border-bottom:1px solid var(--line)}
-  .note{color:var(--sub);font-size:11px;line-height:1.5;margin-top:6px}
+  .note{color:var(--sub);font-size:11px;line-height:1.6;margin-top:6px}
+  .note b{color:var(--ink)}
   .err{display:none;background:#3a1c16;border:1px solid var(--warn);color:#f6d9cf;
     padding:10px;border-radius:10px;font-size:12px;margin-bottom:12px;white-space:pre-wrap}
 </style>
@@ -60,6 +63,15 @@
   <div class="err" id="err"></div>
   <h1>言ノ葉 焙煎タイマー <span style="color:var(--sub);font-size:12px">v0</span></h1>
   <div class="tag">珈悦（こうえつ）陶器・遠赤外線 250g｜まず焙煎を本物に</div>
+
+  <div class="panel sticky">
+    <div class="timer" id="timer">00:00</div>
+    <div class="ctrl">
+      <button class="start" id="startBtn" type="button">スタート</button>
+      <button class="reset" id="resetBtn" type="button">リセット</button>
+    </div>
+    <div class="toggle"><input type="checkbox" id="beep"><label for="beep" style="margin:0">30秒ごとに音で知らせる</label></div>
+  </div>
 
   <div class="panel">
     <div><label>豆（産地/銘柄）</label><input id="bean" placeholder="例）エチオピア イルガチェフェ"></div>
@@ -75,30 +87,30 @@
       <input id="procOther" style="display:none;margin-top:8px" placeholder="その他の精製を入力">
     </div>
     <div class="row" style="margin-top:10px">
-      <div><label>生豆量 (g)</label><input id="green" type="number" inputmode="decimal" placeholder="250"></div>
-      <div><label>室温 (℃)</label><input id="room" type="number" inputmode="decimal" placeholder="24"></div>
-      <div><label>火力</label><input id="heat" placeholder="中"></div>
+      <div><label>生豆量 (g)</label><input id="green" type="number" inputmode="decimal" value="150"></div>
+      <div><label>室温 (℃)</label><input id="room" type="number" inputmode="decimal" value="20"></div>
+    </div>
+    <div style="margin-top:10px">
+      <label>火力</label>
+      <div class="chips" id="heatChips">
+        <button type="button" class="chip" data-v="弱">弱</button>
+        <button type="button" class="chip" data-v="中弱">中弱</button>
+        <button type="button" class="chip" data-v="中">中</button>
+        <button type="button" class="chip" data-v="中強">中強</button>
+        <button type="button" class="chip" data-v="強">強</button>
+      </div>
     </div>
   </div>
 
   <div class="panel">
-    <div class="timer" id="timer">00:00</div>
-    <div class="ctrl">
-      <button class="start" id="startBtn" type="button">スタート</button>
-      <button class="reset" id="resetBtn" type="button">リセット</button>
-    </div>
-    <div class="toggle"><input type="checkbox" id="beep"><label for="beep" style="margin:0">30秒ごとに音で知らせる</label></div>
-  </div>
-
-  <div class="panel">
-    <label style="margin-bottom:8px">節目（焼きながらタップ＝その時刻を記録・温度は後で）</label>
+    <label style="margin-bottom:8px">節目（焼きながらタップ＝その時刻を記録。温度は後から入れてもOK）</label>
     <div class="events" id="events"></div>
   </div>
 
   <div class="panel">
     <label>焼き上がり</label>
     <div class="row">
-      <div><label>焙煎後 (g)</label><input id="roasted" type="number" inputmode="decimal" placeholder="210"></div>
+      <div><label>焙煎後 (g)</label><input id="roasted" type="number" inputmode="decimal" placeholder="例）126"></div>
     </div>
     <div style="margin-top:10px">
       <div class="stat"><span>重量減%</span><b id="loss">—</b></div>
@@ -110,7 +122,7 @@
       <button class="save" id="saveBtn" type="button">この焙煎を保存</button>
       <button id="csvBtn" type="button">CSV出力</button>
     </div>
-    <div class="note">※保存はこの端末の中だけ（localStorage）。CSV出力でGoogleスプレッドシートに移せる。サーバーにもクラウドにも送らない。</div>
+    <div class="note">※保存先＝<b>この端末のブラウザの中だけ（localStorage）</b>。Safariの履歴削除や端末の空き容量不足で<b>消えることがある</b>。だから<b>CSV出力が本当のバックアップ</b>。サーバー・クラウドには一切送らない。</div>
   </div>
 
   <div class="panel">
@@ -126,54 +138,63 @@ window.onerror=function(m,s,l){var e=document.getElementById("err");if(e){e.styl
   function nn(v){return (v===undefined||v===null)?"":v;}
   function fmt(s){s=Math.max(0,Math.round(s));return ("0"+Math.floor(s/60)).slice(-2)+":"+("0"+(s%60)).slice(-2);}
   function nowSec(){return Date.now()/1000;}
+  function num(id){var v=parseFloat($(id).value);return isNaN(v)?null:v;}
 
   var EVENTS=[
     {key:"charge",name:"投入"},{key:"bottom",name:"中点"},
     {key:"fc",name:"1ハゼ開始"},{key:"fce",name:"1ハゼ終了"},
     {key:"sc",name:"2ハゼ開始"},{key:"drop",name:"煎り止め"}
   ];
-  var running=false,t0=0,elapsed=0,tick=null,lastBeep=0;
-  var marks={},temps={};
-  var selProc="";
+  var running=false,t0=0,elapsed=0,tick=null,lastBeep=0,wakeLock=null;
+  var marks={},temps={},cards={},selProc="",selHeat="";
+
+  /* ---- 選択式チップ（精製・火力）---- */
   function getProc(){ if(selProc==="その他"){var o=$("procOther").value;return o?o:"その他";} return selProc; }
-  function setupProc(){
-    var chips=$("procChips").querySelectorAll(".chip");
+  function getHeat(){ return selHeat; }
+  function setupChips(containerId, onPick){
+    var chips=$(containerId).querySelectorAll(".chip");
     for(var i=0;i<chips.length;i++){(function(c){
       c.addEventListener("click",function(){
-        selProc=c.getAttribute("data-v");
-        var all=$("procChips").querySelectorAll(".chip");
+        var all=$(containerId).querySelectorAll(".chip");
         for(var j=0;j<all.length;j++)all[j].classList.remove("sel");
         c.classList.add("sel");
-        $("procOther").style.display=(selProc==="その他")?"block":"none";
+        onPick(c.getAttribute("data-v"));
       });
     })(chips[i]);}
   }
 
+  /* ---- 節目カード（押したカードだけ更新＝温度入力を壊さない）---- */
   function renderEvents(){
-    var wrap=$("events");wrap.innerHTML="";
-    for(var i=0;i<EVENTS.length;i++){
-      (function(e){
-        var done=(marks[e.key]!==undefined);
-        var div=document.createElement("div");
-        div.className="ev"+(done?" done":"");
-        div.innerHTML='<b>'+e.name+'</b><div class="t">'+(done?fmt(marks[e.key]):"—")+'</div>'+
-          '<button type="button">'+(done?"記録し直す":"記録")+'</button>'+
-          '<input type="number" inputmode="decimal" placeholder="温度℃" value="'+nn(temps[e.key])+'">';
-        div.querySelector("button").addEventListener("click",function(){mark(e.key);});
-        div.querySelector("input").addEventListener("input",function(){temps[e.key]=this.value;});
-        wrap.appendChild(div);
-      })(EVENTS[i]);
-    }
+    var wrap=$("events");wrap.innerHTML="";cards={};
+    for(var i=0;i<EVENTS.length;i++){(function(e){
+      var done=(marks[e.key]!==undefined);
+      var div=document.createElement("div");
+      div.className="ev"+(done?" done":"");
+      div.innerHTML='<b>'+e.name+'</b><div class="t">'+(done?fmt(marks[e.key]):"—")+'</div>'+
+        '<button type="button">'+(done?"記録し直す":"記録")+'</button>'+
+        '<input type="number" inputmode="decimal" placeholder="温度℃" value="'+nn(temps[e.key])+'">';
+      var btn=div.querySelector("button"), inp=div.querySelector("input");
+      btn.addEventListener("click",function(){mark(e.key);});
+      inp.addEventListener("input",function(){temps[e.key]=this.value;});
+      cards[e.key]={div:div,t:div.querySelector(".t"),btn:btn};
+      wrap.appendChild(div);
+    })(EVENTS[i]);}
   }
   function mark(key){
     if(key==="charge"){resetTime();marks.charge=0;if(!running)startRun();}
     else{marks[key]=elapsed;if(key==="drop")stopRun();}
-    renderEvents();recalc();
+    var c=cards[key];
+    if(c){c.div.className="ev done";c.t.textContent=fmt(marks[key]);c.btn.textContent="記録し直す";}
+    recalc();
   }
+
+  /* ---- タイマー＋画面スリープ防止（Wake Lock）---- */
+  function reqWake(){ try{ if("wakeLock" in navigator){ navigator.wakeLock.request("screen").then(function(w){wakeLock=w;}).catch(function(){}); } }catch(e){} }
+  function relWake(){ try{ if(wakeLock){ wakeLock.release().catch(function(){}); wakeLock=null; } }catch(e){} }
   function startRun(){running=true;t0=nowSec()-elapsed;lastBeep=Math.floor(elapsed/30);
-    tick=setInterval(loop,200);$("startBtn").textContent="一時停止";$("startBtn").classList.add("running");}
+    tick=setInterval(loop,200);$("startBtn").textContent="一時停止";$("startBtn").classList.add("running");reqWake();}
   function stopRun(){running=false;clearInterval(tick);
-    $("startBtn").textContent="再開";$("startBtn").classList.remove("running");}
+    $("startBtn").textContent="再開";$("startBtn").classList.remove("running");relWake();}
   function toggleRun(){if(running)stopRun();else startRun();}
   function resetTime(){elapsed=0;t0=nowSec();$("timer").textContent="00:00";}
   function loop(){
@@ -187,7 +208,9 @@ window.onerror=function(m,s,l){var e=document.getElementById("err");if(e){e.styl
       setTimeout(function(){a.close();},300);}catch(e){}
     if(navigator.vibrate)navigator.vibrate(80);
   }
-  function num(id){var v=parseFloat($(id).value);return isNaN(v)?null:v;}
+  document.addEventListener("visibilitychange",function(){ if(document.visibilityState==="visible"&&running)reqWake(); });
+
+  /* ---- 集計 ---- */
   function recalc(){
     var g=num("green"),r=num("roasted");
     $("loss").textContent=(g&&r&&g>0)?((g-r)/g*100).toFixed(1)+" %":"—";
@@ -198,26 +221,29 @@ window.onerror=function(m,s,l){var e=document.getElementById("err");if(e){e.styl
   function resetAll(){
     if(!confirm("今の入力を全部消して新しい焙煎を始める？"))return;
     stopRun();elapsed=0;marks={};temps={};
-    var ids=["bean","green","room","heat","roasted","memo"];
-    for(var i=0;i<ids.length;i++)$(ids[i]).value="";
+    $("bean").value="";$("roasted").value="";$("memo").value="";
+    $("green").value="150";$("room").value="20";
     selProc="";$("procOther").value="";$("procOther").style.display="none";
-    var pc=$("procChips").querySelectorAll(".chip");for(var k=0;k<pc.length;k++)pc[k].classList.remove("sel");
+    selHeat="";
+    var all=document.querySelectorAll(".chip");for(var k=0;k<all.length;k++)all[k].classList.remove("sel");
     $("timer").textContent="00:00";renderEvents();recalc();
   }
+
+  /* ---- 保存・出力（全節目の時刻＋温度を保持）---- */
   function collect(){
     var g=num("green"),r=num("roasted");
     var loss=(g&&r&&g>0)?((g-r)/g*100).toFixed(1):"";
     var drop=marks.drop,fc=marks.fc;
     var dtr=(drop!==undefined&&fc!==undefined&&drop>0)?((drop-fc)/drop*100).toFixed(1):"";
-    return {date:new Date().toLocaleString("ja-JP"),bean:$("bean").value,proc:getProc(),
-      green:nn(g),roasted:nn(r),loss:loss,room:$("room").value,heat:$("heat").value,
-      bottom:nn(marks.bottom),bottomT:nn(temps.bottom),fc:nn(marks.fc),fcT:nn(temps.fc),
-      drop:nn(marks.drop),dropT:nn(temps.drop),dtr:dtr,memo:$("memo").value};
+    var o={date:new Date().toLocaleString("ja-JP"),bean:$("bean").value,proc:getProc(),
+      green:nn(g),roasted:nn(r),loss:loss,room:$("room").value,heat:getHeat(),dtr:dtr,memo:$("memo").value};
+    for(var i=0;i<EVENTS.length;i++){var k=EVENTS[i].key;o[k]=nn(marks[k]);o[k+"T"]=nn(temps[k]);}
+    return o;
   }
   function getList(){try{return JSON.parse(localStorage.getItem("kotonoha_roasts")||"[]");}catch(e){return [];}}
   function saveRoast(){var list=getList();list.unshift(collect());
     try{localStorage.setItem("kotonoha_roasts",JSON.stringify(list));}catch(e){}
-    renderHist();alert("保存した。");}
+    renderHist();alert("保存した（この端末内）。バックアップはCSV出力で。");}
   function renderHist(){
     var list=getList(),h=$("hist");
     if(!list.length){h.textContent="まだ無し";return;}
@@ -227,23 +253,31 @@ window.onerror=function(m,s,l){var e=document.getElementById("err");if(e){e.styl
   }
   function exportCSV(){
     var rows=[collect()].concat(getList());
-    var head=["日付","豆","精製","生豆量g","焙煎後g","重量減%","室温","火力","中点[秒]","中点温度","1ハゼ開始[秒]","1ハゼ温度","煎り止め[秒]","煎り止め温度","DTR%","メモ"];
+    var head=["日付","豆","精製","生豆量g","焙煎後g","重量減%","室温","火力"];
+    for(var i=0;i<EVENTS.length;i++){head.push(EVENTS[i].name+"[秒]");head.push(EVENTS[i].name+"温度");}
+    head.push("DTR%");head.push("メモ");
     var lines=[head.join(",")];
-    for(var i=0;i<rows.length;i++){var x=rows[i];
-      lines.push([x.date,x.bean,x.proc,x.green,x.roasted,x.loss,x.room,x.heat,x.bottom,x.bottomT,x.fc,x.fcT,x.drop,x.dropT,x.dtr,String(x.memo||"").replace(/[\n,]/g," ")].join(","));}
+    for(var r=0;r<rows.length;r++){var x=rows[r];
+      var row=[x.date,x.bean,x.proc,x.green,x.roasted,x.loss,x.room,x.heat];
+      for(var i=0;i<EVENTS.length;i++){row.push(x[EVENTS[i].key]);row.push(x[EVENTS[i].key+"T"]);}
+      row.push(x.dtr);row.push(String(x.memo||"").replace(/[\n,]/g," "));
+      lines.push(row.join(","));}
     var blob=new Blob(["﻿"+lines.join("\n")],{type:"text/csv"});
     var a=document.createElement("a");a.href=URL.createObjectURL(blob);
     a.download="焙煎ログ_"+new Date().toISOString().slice(0,10)+".csv";
     document.body.appendChild(a);a.click();document.body.removeChild(a);
   }
 
+  /* ---- 初期化 ---- */
+  setupChips("procChips",function(v){selProc=v;$("procOther").style.display=(v==="その他")?"block":"none";});
+  setupChips("heatChips",function(v){selHeat=v;});
   $("startBtn").addEventListener("click",toggleRun);
   $("resetBtn").addEventListener("click",resetAll);
   $("saveBtn").addEventListener("click",saveRoast);
   $("csvBtn").addEventListener("click",exportCSV);
   $("green").addEventListener("input",recalc);
   $("roasted").addEventListener("input",recalc);
-  setupProc();renderEvents();renderHist();recalc();
+  renderEvents();renderHist();recalc();
 })();
 </script>
 </body>
