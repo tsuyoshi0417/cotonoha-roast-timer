@@ -69,6 +69,10 @@
   .ldtr{display:none;text-align:center;background:var(--panel2);border:1px solid var(--accent);
     border-radius:12px;padding:12px;margin-top:10px;font-size:15px;color:var(--ink)}
   .ldtr b{font-size:24px;color:var(--accent2);font-variant-numeric:tabular-nums}
+  /* ベイク注意（ソフト・普段は非表示＝高さ0／トリガー時だけ細い1行バナー。錆赤は枠/文字だけ＝アラーム化しない）*/
+  .bake{display:none;margin-top:10px;padding:8px 10px;border:1px solid var(--warn);
+    border-radius:10px;background:transparent;color:var(--warn);font-size:12px;line-height:1.5}
+  .bake .sub{color:var(--sub);font-size:11px}
   .stat{display:flex;justify-content:space-between;font-size:15px;padding:8px 2px;border-bottom:1px solid var(--line)}
   .stat b{color:var(--accent2);font-variant-numeric:tabular-nums}
   .acts{display:flex;gap:10px;margin-top:8px}
@@ -118,10 +122,11 @@
     #tabDuring .panel{padding:10px}
     #tabDuring .timer{margin:0 0 4px}
     #tabDuring .ctrl{margin-bottom:0}
-    #tabDuring .toggle{margin-top:6px}
+    /* 焼く中はトグルが2行（30秒ビープ＋ベイク注意）＝行間を詰めてiPad1画面を維持 */
+    #tabDuring .toggle{margin-top:4px}
     /* 節目（左）＝カードのpadding/gapだけ詰める。ボタンmin-height56pxは死守 */
     #tabDuring .events{gap:6px}
-    #tabDuring .events.big .ev{padding:7px;gap:4px}
+    #tabDuring .events.big .ev{padding:5px;gap:4px}
     #tabDuring .panel > label{margin-bottom:4px}
     /* 右カラム＝グラフ高と余白を詰める */
     #tabDuring #graph{height:108px !important}
@@ -193,6 +198,7 @@
           <button class="reset" id="resetBtn" type="button">リセット</button>
         </div>
         <div class="toggle"><input type="checkbox" id="beep"><label for="beep" style="margin:0">30秒ごとに音で知らせる</label></div>
+        <div class="toggle"><input type="checkbox" id="bakeOn" checked><label for="bakeOn" style="margin:0">長丁場のとき“ベイク注意”を出す</label></div>
       </div>
 
       <div class="panel">
@@ -210,6 +216,7 @@
           <button type="button" class="chip" data-v="強">強</button>
         </div>
         <div class="ldtr" id="liveDtr">今止めたら DTR <b id="liveDtrVal">—</b></div>
+        <div class="bake" id="bakeWarn">⏱ 長丁場です。温度は上がってる？ 火力が寝たまま時間だけ進むと“ベイク”（味が抜ける）になりやすい。気になったら火力か煎り止めを。<br><span class="sub">（この機械は長めが普通・最終判断は味）</span></div>
       </div>
 
       <div class="panel">
@@ -277,6 +284,9 @@ window.onerror=function(m,s,l){var e=document.getElementById("err");if(e){e.styl
   function nowSec(){return Date.now()/1000;}
   function num(id){var v=parseFloat($(id).value);return isNaN(v)?null:v;}
 
+  /* ベイク注意のしきい値（秒）＝この1か所だけ変えれば調整可。将来ログから自動化する余白。 */
+  var BAKE_WARN_SEC=1080; // 18分
+
   var EVENTS=[
     {key:"charge",name:"投入"},{key:"bottom",name:"中点"},
     {key:"fc",name:"1ハゼ開始"},{key:"fce",name:"1ハゼ終了"},
@@ -342,7 +352,7 @@ window.onerror=function(m,s,l){var e=document.getElementById("err");if(e){e.styl
     if(c){c.div.className="ev done";c.t.textContent=fmt(marks[key]);c.btn.textContent="記録し直す";}
     var ca=cardsA[key];
     if(ca){ca.div.className="ev done";ca.t.textContent=fmt(marks[key]);ca.btn.textContent="記録し直す";}
-    recalc();updateLiveDtr();
+    recalc();updateLiveDtr();updateBakeWarn();
   }
 
   /* ---- タブ切替（DOMは消さずCSSで表示/非表示）---- */
@@ -373,17 +383,30 @@ window.onerror=function(m,s,l){var e=document.getElementById("err");if(e){e.styl
     }
   }
 
+  /* ---- ベイク注意（ソフト・トリガー時だけ細い1行バナー）----
+     条件：焼く中（running）かつ 煎り止め(drop)未記録 かつ elapsed≥しきい値。
+     OFF（チェックなし）なら一切出さない。普段は display:none＝高さを取らない。 */
+  function updateBakeWarn(){
+    var box=$("bakeWarn"); if(!box)return;
+    var on=$("bakeOn")?$("bakeOn").checked:true;
+    if(on && running && marks.drop===undefined && elapsed>=BAKE_WARN_SEC){
+      box.style.display="block";
+    } else {
+      box.style.display="none";
+    }
+  }
+
   /* ---- タイマー＋画面スリープ防止（Wake Lock）---- */
   function reqWake(){ try{ if("wakeLock" in navigator){ navigator.wakeLock.request("screen").then(function(w){wakeLock=w;}).catch(function(){}); } }catch(e){} }
   function relWake(){ try{ if(wakeLock){ wakeLock.release().catch(function(){}); wakeLock=null; } }catch(e){} }
   function startRun(){running=true;t0=nowSec()-elapsed;lastBeep=Math.floor(elapsed/30);
     tick=setInterval(loop,200);$("startBtn").textContent="一時停止";$("startBtn").classList.add("running");reqWake();}
   function stopRun(){running=false;clearInterval(tick);
-    $("startBtn").textContent="再開";$("startBtn").classList.remove("running");relWake();}
+    $("startBtn").textContent="再開";$("startBtn").classList.remove("running");relWake();updateBakeWarn();}
   function toggleRun(){if(running)stopRun();else startRun();}
   function resetTime(){elapsed=0;t0=nowSec();$("timer").textContent="00:00";}
   function loop(){
-    elapsed=nowSec()-t0;$("timer").textContent=fmt(elapsed);drawGraph();updateLiveDtr();
+    elapsed=nowSec()-t0;$("timer").textContent=fmt(elapsed);drawGraph();updateLiveDtr();updateBakeWarn();
     if($("beep").checked){var b=Math.floor(elapsed/30);if(b>lastBeep){lastBeep=b;doBeep();}}
   }
   function doBeep(){
@@ -412,7 +435,7 @@ window.onerror=function(m,s,l){var e=document.getElementById("err");if(e){e.styl
     selHeat="";
     var all=document.querySelectorAll(".chip");for(var k=0;k<all.length;k++)all[k].classList.remove("sel");
     series=[];flames=[];$("curTemp").value="";
-    $("timer").textContent="00:00";renderEvents();recalc();onBeanChange();updateLiveDtr();
+    $("timer").textContent="00:00";renderEvents();recalc();onBeanChange();updateLiveDtr();updateBakeWarn();
     showTab("before");
   }
 
@@ -713,6 +736,7 @@ window.onerror=function(m,s,l){var e=document.getElementById("err");if(e){e.styl
   $("p5").addEventListener("click",function(){addTemp(5);});
   $("p10").addEventListener("click",function(){addTemp(10);});
   $("pNow").addEventListener("click",function(){recordPoint(parseFloat($("curTemp").value));});
+  var _bakeOn=$("bakeOn"); if(_bakeOn)_bakeOn.addEventListener("change",updateBakeWarn);
   $("bean").addEventListener("input",onBeanChange);
   $("bean").addEventListener("change",onBeanChange);
   window.addEventListener("resize",drawGraph);
@@ -723,7 +747,7 @@ window.onerror=function(m,s,l){var e=document.getElementById("err");if(e){e.styl
   for(var _ti=0;_ti<_tabBtns.length;_ti++){(function(b){
     b.addEventListener("click",function(){showTab(b.getAttribute("data-tab"));});
   })(_tabBtns[_ti]);}
-  renderEvents();renderHist();refreshBeanList();recalc();onBeanChange();updateLiveDtr();
+  renderEvents();renderHist();refreshBeanList();recalc();onBeanChange();updateLiveDtr();updateBakeWarn();
   showTab("before"); // 初期表示＝焼く前
   Cloud.init(); // クラウド同期を起動（失敗してもここまでで本体は動いている）
 })();
