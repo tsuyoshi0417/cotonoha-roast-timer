@@ -7,9 +7,9 @@
 <title>言ノ葉 焙煎タイマー</title>
 <style>
   :root{
-    --bg:#191712; --panel:#232019; --panel2:#2d2920;
-    --ink:#f0e9da; --sub:#a89d88; --line:#3a352b;
-    --accent:#97a559; --accent2:#d8c486; --ok:#97a559; --warn:#b06a4f;
+    --bg:#f4f1e8; --panel:#fbf9f3; --panel2:#efe9da;
+    --ink:#2b2823; --sub:#7c7464; --line:#e0d9c8;
+    --accent:#427e89; --accent2:#a98b3c; --ok:#427e89; --warn:#a85a3c;
   }
   *{box-sizing:border-box;-webkit-tap-highlight-color:transparent}
   body{margin:0;background:var(--bg);color:var(--ink);
@@ -26,12 +26,12 @@
   .tabbtn{flex:1;padding:13px 6px;font-size:15px;font-weight:700;border-radius:12px;
     background:var(--panel2);color:var(--sub);border:1px solid var(--line);cursor:pointer;font-family:inherit;
     min-height:52px}
-  .tabbtn.cur{background:var(--accent);color:#1b1207;border-color:transparent}
+  .tabbtn.cur{background:var(--accent);color:#ffffff;border-color:transparent}
   h1{font-size:18px;font-weight:700;margin:2px 0 2px;letter-spacing:.04em}
   .tag{color:var(--sub);font-size:12px;margin-bottom:12px}
   .panel{background:var(--panel);border:1px solid var(--line);border-radius:14px;padding:14px;margin-bottom:12px}
   .panel.sticky{position:-webkit-sticky;position:sticky;top:60px;z-index:10;
-    box-shadow:0 8px 20px rgba(0,0,0,.45)}
+    box-shadow:0 8px 20px rgba(0,0,0,.10)}
   label{display:block;font-size:12px;color:var(--sub);margin:0 0 4px}
   input,textarea{width:100%;background:var(--panel2);border:1px solid var(--line);
     color:var(--ink);border-radius:10px;padding:10px;font-size:16px;font-family:inherit}
@@ -42,19 +42,19 @@
   button{border:0;border-radius:12px;padding:14px;font-size:16px;font-weight:700;
     color:var(--ink);background:var(--panel2);border:1px solid var(--line);cursor:pointer;flex:1;font-family:inherit}
   button:active{transform:scale(.98)}
-  .start{background:var(--ok);border-color:transparent;color:#10180c}
+  .start{background:var(--ok);border-color:transparent;color:#ffffff}
   .start.running{background:var(--warn);color:#fff}
   .reset{flex:.5;background:transparent;color:var(--sub)}
   .chips{display:flex;flex-wrap:wrap;gap:8px;margin-top:2px}
   .chip{flex:0 0 auto;padding:11px 16px;font-size:14px;font-weight:600;background:var(--panel2);
     color:var(--ink);border:1px solid var(--line);border-radius:999px}
-  .chip.sel{background:var(--accent);color:#1b1207;border-color:transparent}
+  .chip.sel{background:var(--accent);color:#ffffff;border-color:transparent}
   .events{display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-top:4px}
   .ev{display:flex;flex-direction:column;align-items:stretch;gap:6px;background:var(--panel2);
     border:1px solid var(--line);border-radius:12px;padding:10px}
   .ev b{font-size:14px}
   .ev .t{font-variant-numeric:tabular-nums;font-size:20px;color:var(--accent2);font-weight:700}
-  .ev button{padding:9px;font-size:13px;background:var(--accent);color:#1b1207;border:0}
+  .ev button{padding:9px;font-size:13px;background:var(--accent);color:#ffffff;border:0}
   .ev input{padding:8px;font-size:15px;text-align:center}
   .ev.done{border-color:var(--accent)}
   /* 焼く中の節目＝大ボタン（温度欄なし・遠目で押せる）*/
@@ -63,8 +63,8 @@
   .events.big .ev .t{font-size:24px}
   .events.big .ev button{padding:16px;font-size:16px;min-height:56px}
   .events.big .ev.done{background:var(--accent);border-color:transparent}
-  .events.big .ev.done b,.events.big .ev.done .t{color:#1b1207}
-  .events.big .ev.done button{background:#1b1207;color:var(--accent2)}
+  .events.big .ev.done b,.events.big .ev.done .t{color:#ffffff}
+  .events.big .ev.done button{background:rgba(255,255,255,.18);color:#ffffff}
   /* 進行中DTR（1ハゼ後だけ「今止めたら◯%」）*/
   .ldtr{display:none;text-align:center;background:var(--panel2);border:1px solid var(--accent);
     border-radius:12px;padding:12px;margin-top:10px;font-size:15px;color:var(--ink)}
@@ -72,14 +72,14 @@
   .stat{display:flex;justify-content:space-between;font-size:15px;padding:8px 2px;border-bottom:1px solid var(--line)}
   .stat b{color:var(--accent2);font-variant-numeric:tabular-nums}
   .acts{display:flex;gap:10px;margin-top:8px}
-  .acts .save{background:var(--accent);color:#1b1207;border:0}
+  .acts .save{background:var(--accent);color:#ffffff;border:0}
   .toggle{display:flex;align-items:center;gap:8px;color:var(--sub);font-size:13px;margin-top:8px}
   .toggle input{width:auto}
   .hist{font-size:13px;color:var(--sub)}
   .hist div{padding:6px 0;border-bottom:1px solid var(--line)}
   .note{color:var(--sub);font-size:11px;line-height:1.6;margin-top:6px}
   .note b{color:var(--ink)}
-  .err{display:none;background:#3a1c16;border:1px solid var(--warn);color:#f6d9cf;
+  .err{display:none;background:#f7e3da;border:1px solid var(--warn);color:#8a3d23;
     padding:10px;border-radius:10px;font-size:12px;margin-bottom:12px;white-space:pre-wrap}
 
   /* 広い画面（iPad）＝中央寄せで読みやすい幅に保つ（3タブは縦1カラムのまま）*/
@@ -510,7 +510,7 @@ window.onerror=function(m,s,l){var e=document.getElementById("err");if(e){e.styl
     if(series.length===0&&past.length===0){minY=0;maxY=200;}
     if(minY>maxY){minY=0;maxY=200;}
     if(minY===maxY){minY-=5;maxY+=5;}
-    x.strokeStyle="#3a352b"; x.lineWidth=1; x.fillStyle="#a89d88"; x.font="10px sans-serif";
+    x.strokeStyle="#cfc6b2"; x.lineWidth=1; x.fillStyle="#7c7464"; x.font="10px sans-serif";
     x.beginPath(); x.moveTo(padL,padT); x.lineTo(padL,padT+pH); x.lineTo(padL+pW,padT+pH); x.stroke();
     x.fillText(Math.round(maxY)+"°",2,padT+8);
     x.fillText(Math.round(minY)+"°",2,padT+pH);
@@ -519,26 +519,26 @@ window.onerror=function(m,s,l){var e=document.getElementById("err");if(e){e.styl
     function PY(v){return padT+pH-((v-minY)/(maxY-minY))*pH;}
     /* 過去カーブ＝薄い色で背面に */
     for(j=0;j<past.length;j++){ var c2=past[j];
-      x.strokeStyle="rgba(216,196,134,.22)"; x.lineWidth=1.5; x.beginPath();
+      x.strokeStyle="rgba(124,116,100,.28)"; x.lineWidth=1.5; x.beginPath();
       for(i=0;i<c2.length;i++){ var qx=PX(c2[i].t), qy=PY(c2[i].temp); if(i===0)x.moveTo(qx,qy); else x.lineTo(qx,qy); }
       x.stroke();
     }
     /* 節目ライン（1ハゼ・煎り止め）*/
-    var evk=["fc","drop"];
-    for(i=0;i<evk.length;i++){ var mk=marks[evk[i]]; if(mk!==undefined){ x.strokeStyle="rgba(176,106,79,.55)"; x.lineWidth=1; x.beginPath(); var xx=PX(mk); x.moveTo(xx,padT); x.lineTo(xx,padT+pH); x.stroke(); } }
+    var evk=["fc","drop"], evColor={fc:"rgba(168,90,60,.55)",drop:"rgba(66,126,137,.65)"};
+    for(i=0;i<evk.length;i++){ var mk=marks[evk[i]]; if(mk!==undefined){ x.strokeStyle=evColor[evk[i]]; x.lineWidth=1; x.beginPath(); var xx=PX(mk); x.moveTo(xx,padT); x.lineTo(xx,padT+pH); x.stroke(); } }
     /* 火力変更マーカー＝ティール/青系の縦線（節目のaccent色と混同しないよう別色）＋下部に小ラベル */
     if(flames.length>0){
       var fx, prevLabelX=-999, lab;
       x.font="9px sans-serif";
       for(i=0;i<flames.length;i++){
         fx=PX(flames[i].t);
-        x.strokeStyle="rgba(110,150,205,.6)"; x.lineWidth=1; x.setLineDash([3,3]);
+        x.strokeStyle="rgba(150,120,70,.55)"; x.lineWidth=1; x.setLineDash([3,3]);
         x.beginPath(); x.moveTo(fx,padT); x.lineTo(fx,padT+pH); x.stroke();
         x.setLineDash([]);
         lab=String(flames[i].level||"");
         /* ラベルが詰まりすぎたら間引く（直前ラベルと近すぎたら出さない）*/
         if(fx-prevLabelX>=14){
-          x.fillStyle="rgba(150,180,225,.95)";
+          x.fillStyle="rgba(120,95,50,.95)";
           x.fillText(lab, Math.min(fx+1, padL+pW-12), padT+pH-2);
           prevLabelX=fx;
         }
@@ -546,11 +546,11 @@ window.onerror=function(m,s,l){var e=document.getElementById("err");if(e){e.styl
     }
     /* 現在カーブ＝濃く前面に */
     if(series.length>0){
-      x.strokeStyle="#d8c486"; x.lineWidth=2; x.beginPath();
+      x.strokeStyle="#427e89"; x.lineWidth=2; x.beginPath();
       for(i=0;i<series.length;i++){ var px=PX(series[i].t), py=PY(series[i].temp); if(i===0)x.moveTo(px,py); else x.lineTo(px,py); }
-      x.stroke(); x.fillStyle="#d8c486";
+      x.stroke(); x.fillStyle="#427e89";
       for(i=0;i<series.length;i++){ x.beginPath(); x.arc(PX(series[i].t),PY(series[i].temp),2.5,0,6.3); x.fill(); }
-    } else if(past.length===0){ x.fillStyle="#6b5947"; x.fillText("温度を記録すると曲線が出ます",padL+8,padT+pH/2); }
+    } else if(past.length===0){ x.fillStyle="#a89e88"; x.fillText("温度を記録すると曲線が出ます",padL+8,padT+pH/2); }
   }
 
   /* ---- 豆名変更時：過去カーブの有無でヒント表示＋グラフ再描画 ---- */
