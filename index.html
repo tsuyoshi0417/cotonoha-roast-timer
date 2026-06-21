@@ -435,15 +435,47 @@
       </div>
     </div>
 
-    <!-- サイフォン -->
+    <!-- サイフォン（ハリオ ビームサイフォン）。抽出記録のv0＝最小限 -->
     <div class="subtab" id="brewSyp">
       <div class="panel">
-        <label>ロット（焙煎を選ぶ）</label>
-        <select id="lotSelSyp"></select>
-        <div class="note" id="lotEmptySyp" style="display:none">焙煎を記録するとここで豆（ロット）を選べます。</div>
+        <label>対象（焙煎を選ぶ／無ければ豆名を手入力）</label>
+        <select id="lotSelSyp" style="margin-bottom:8px"></select>
+        <div class="note" id="lotEmptySyp" style="display:none;margin-bottom:8px">保存した焙煎がまだ無いので、下に豆名を書けば今すぐ記録できる。</div>
+        <div class="row">
+          <div><label>豆名</label><input id="sypBean" placeholder="例：グァテマラ"></div>
+          <div style="flex:.7"><label>挽き目（任意）</label><input id="sypGrind" placeholder="中粗 等"></div>
+        </div>
       </div>
+
       <div class="panel">
-        <div class="ph">ここは焙煎が数本溜まってから作る（味覚コーチ設計の6軸＋Brix）。エスプレッソはパボーニで何十杯か引いてから。</div>
+        <label>抽出</label>
+        <div class="row">
+          <div><label>粉量g</label><input id="sypDose" type="number" inputmode="decimal" placeholder="例 20"></div>
+          <div><label>湯量g</label><input id="sypWater" type="number" inputmode="decimal" placeholder="例 280"></div>
+          <div><label>浸漬秒</label><input id="sypTime" type="number" inputmode="numeric" placeholder="例 60"></div>
+        </div>
+        <div class="row" style="margin-top:8px">
+          <div><label>湯温℃（任意）</label><input id="sypTemp" type="number" inputmode="numeric" placeholder="例 92"></div>
+          <div style="flex:2"><label>攪拌など（任意）</label><input id="sypStir" placeholder="例：上がりで2回、止め前1回"></div>
+        </div>
+        <div class="cuptotal">比率 <b id="sypRatio">—</b> <span style="font-size:13px">（湯÷粉・1:12〜15が目安）</span></div>
+      </div>
+
+      <div class="panel">
+        <label>味（ひとことでOK）</label>
+        <textarea id="sypNote" rows="2" placeholder="クリア/甘い/薄い…次どう変えるか"></textarea>
+        <label style="margin-top:10px">手ごたえ（任意）</label>
+        <div class="chips" id="sypStars"></div>
+      </div>
+
+      <div class="panel">
+        <div class="acts">
+          <button type="button" class="save" id="sypSaveBtn">この一杯を保存</button>
+          <button type="button" id="sypCsvBtn" style="flex:.6">CSV出力</button>
+        </div>
+        <div class="note">保存先＝この端末＋（ログイン中なら）クラウド同期。<b>CSVが本当のバックアップ。</b></div>
+        <label style="margin-top:12px">サイフォン履歴</label>
+        <div class="hist" id="sypHist">まだ無し</div>
       </div>
     </div>
   </div><!-- /#modeBrew -->
@@ -610,7 +642,7 @@ window.onerror=function(m,s,l){var e=document.getElementById("err");if(e){e.styl
       if(box){ if(n===name)box.classList.add("active");else box.classList.remove("active"); }
       if(btn){ if(n===name)btn.classList.add("cur");else btn.classList.remove("cur"); }
     }
-    if(name==="brew"){ populateLots(); fillCupLots(); renderCupHist(); fillEspLots(); renderEspHist(); } // 開くたび最新の保存焙煎でロット選択を作り直す
+    if(name==="brew"){ fillCupLots(); renderCupHist(); fillEspLots(); renderEspHist(); fillSypLots(); renderSypHist(); } // 開くたび最新の保存焙煎で各フォームを作り直す
     try{ window.scrollTo(0,0); }catch(e){}
   }
 
@@ -1047,6 +1079,104 @@ window.onerror=function(m,s,l){var e=document.getElementById("err");if(e){e.styl
     document.body.appendChild(a);a.click();document.body.removeChild(a);
   }
 
+  /* ============ サイフォン（ハリオ ビームサイフォン）============
+     抽出記録のv0。保存=localStorage cotonoha_siphon＋（ログイン中は）クラウド users/{uid}/siphon。
+     カッピング/エスプレッソと同じ作法。SSOT=50_カッピング.md */
+  var sypStarVal=0;
+  function getSyp(){try{return JSON.parse(localStorage.getItem("cotonoha_siphon")||"[]");}catch(e){return [];}}
+  function setSyp(l){try{localStorage.setItem("cotonoha_siphon",JSON.stringify(l||[]));}catch(e){}}
+  function updateSypRatio(){
+    var d=parseFloat($("sypDose").value), w=parseFloat($("sypWater").value), el=$("sypRatio");
+    if(!el)return;
+    if(d>0 && w>0){ el.textContent="1:"+(w/d).toFixed(1); } else { el.textContent="—"; }
+  }
+  function buildSypStars(){
+    var box=$("sypStars"); if(!box)return; var html="";
+    for(var i=1;i<=5;i++){ html+='<span class="chip sypStar" data-v="'+i+'">★'+i+'</span>'; }
+    box.innerHTML=html;
+    var chips=box.querySelectorAll(".sypStar");
+    for(var j=0;j<chips.length;j++){(function(c){
+      c.addEventListener("click",function(){
+        var v=parseInt(c.getAttribute("data-v"),10);
+        sypStarVal=(sypStarVal===v)?0:v;
+        var all=box.querySelectorAll(".sypStar");
+        for(var k=0;k<all.length;k++){ if(parseInt(all[k].getAttribute("data-v"),10)<=sypStarVal && sypStarVal>0)all[k].classList.add("sel");else all[k].classList.remove("sel"); }
+      });
+    })(chips[j]);}
+  }
+  function fillSypLots(){
+    var sel=$("lotSelSyp"), emp=$("lotEmptySyp"); if(!sel)return;
+    var list=getList(), opts='<option value="">— 豆名を手入力 —</option>';
+    for(var i=0;i<list.length;i++){var x=list[i];
+      var lotLabel=(x.lot!==undefined&&x.lot!==null&&x.lot!=="")?(" #"+x.lot):"";
+      var label=(x.bean||"(豆名なし)")+lotLabel+"｜"+(x.day||x.date||"");
+      opts+='<option value="'+String(recId(x)).replace(/"/g,"&quot;")+'">'+label.replace(/</g,"&lt;")+'</option>';}
+    sel.innerHTML=opts; sel.style.display="block";
+    if(emp)emp.style.display=list.length?"none":"block";
+  }
+  function onSypLotChange(){
+    var sel=$("lotSelSyp"); if(!sel||!sel.value)return; var list=getList();
+    for(var i=0;i<list.length;i++){ if(String(recId(list[i]))===String(sel.value)){ var x=list[i];
+      var lotLabel=(x.lot!==undefined&&x.lot!==null&&x.lot!=="")?(" #"+x.lot):"";
+      if($("sypBean"))$("sypBean").value=(x.bean||"")+lotLabel; break; } }
+  }
+  function saveSiphon(){
+    var bean=($("sypBean").value||"").trim();
+    if(!bean){ alert("豆名を入れてね（焙煎を選ぶか、手で書く）"); return; }
+    var d=new Date();
+    var dose=$("sypDose").value, water=$("sypWater").value;
+    var ratio=(parseFloat(dose)>0&&parseFloat(water)>0)?(parseFloat(water)/parseFloat(dose)).toFixed(1):"";
+    var rec={
+      id:"syp|"+d.getTime(),
+      date:d.getFullYear()+"/"+(d.getMonth()+1)+"/"+d.getDate()+" "+("0"+d.getHours()).slice(-2)+":"+("0"+d.getMinutes()).slice(-2),
+      lotId:$("lotSelSyp")?$("lotSelSyp").value:"", bean:bean,
+      grind:($("sypGrind").value||"").trim(), dose:dose, water:water, time:$("sypTime").value,
+      temp:$("sypTemp").value, stir:($("sypStir").value||"").trim(),
+      ratio:ratio, star:sypStarVal||"", note:($("sypNote").value||"").trim()
+    };
+    var list=getSyp(); list.unshift(rec); setSyp(list);
+    Cloud.pushSyp(rec);
+    renderSypHist();
+    /* 次の一杯のため浸漬/味/手ごたえはリセット（豆名/挽き目/粉量/湯量は残す）*/
+    $("sypTime").value="";$("sypNote").value="";sypStarVal=0;
+    var all=$("sypStars").querySelectorAll(".sypStar");for(var k=0;k<all.length;k++)all[k].classList.remove("sel");
+    alert("サイフォンを保存した"+(Cloud.isOn()?"（端末＋クラウド）":"（この端末内）")+"。バックアップはCSVで。");
+  }
+  function renderSypHist(){
+    var list=getSyp(), h=$("sypHist"); if(!h)return;
+    if(!list.length){h.textContent="まだ無し";return;}
+    var out="";
+    for(var i=0;i<Math.min(20,list.length);i++){var x=list[i];
+      var rt=(nn(x.ratio)!=="")?("｜1:"+x.ratio):"";
+      var tm=(nn(x.time)!=="")?("｜"+x.time+"秒"):"";
+      var st=(nn(x.star)!=="")?("｜★"+x.star):"";
+      var nt=x.note?("｜"+String(x.note).replace(/</g,"&lt;")):"";
+      var rid=String(x.id).replace(/"/g,"&quot;");
+      out+='<div style="display:flex;align-items:center;gap:8px"><span style="flex:1">'+x.date+'｜'+String(x.bean||"").replace(/</g,"&lt;")+'｜'+nn(x.dose)+'g/'+nn(x.water)+'g'+rt+tm+st+nt+'</span>'+
+        '<button type="button" class="delSyp" data-id="'+rid+'" style="flex:0 0 auto;width:auto;padding:6px 12px;font-size:12px;background:transparent;color:var(--warn);border:1px solid var(--line)">削除</button></div>';}
+    h.innerHTML=out;
+    var dbtns=h.querySelectorAll(".delSyp");
+    for(var k=0;k<dbtns.length;k++){(function(b){b.addEventListener("click",function(){deleteSiphon(b.getAttribute("data-id"));});})(dbtns[k]);}
+  }
+  function deleteSiphon(id){
+    if(!confirm("このサイフォンを削除する？（元に戻せません）"))return;
+    var list=getSyp(), out=[];
+    for(var i=0;i<list.length;i++){ if(String(list[i].id)!==String(id))out.push(list[i]); }
+    setSyp(out); Cloud.deleteSyp(id); renderSypHist();
+  }
+  function exportSypCSV(){
+    var list=getSyp();
+    function c(v){return String(nn(v)).replace(/[\n,]/g," ");}
+    var head=["日時","豆","挽き目","粉量g","湯量g","浸漬秒","湯温","攪拌","比率","手ごたえ","味メモ"];
+    var lines=[head.join(",")];
+    for(var i=0;i<list.length;i++){var x=list[i];
+      lines.push([c(x.date),c(x.bean),c(x.grind),nn(x.dose),nn(x.water),nn(x.time),nn(x.temp),c(x.stir),nn(x.ratio),nn(x.star),c(x.note)].join(","));}
+    var blob=new Blob(["﻿"+lines.join("\n")],{type:"text/csv"});
+    var a=document.createElement("a");a.href=URL.createObjectURL(blob);
+    a.download="サイフォンlog_"+new Date().toISOString().slice(0,10)+".csv";
+    document.body.appendChild(a);a.click();document.body.removeChild(a);
+  }
+
   /* ---- 温度カーブ ---- */
   function recordPoint(temp){
     if(temp===null||isNaN(temp))return;
@@ -1240,7 +1370,7 @@ window.onerror=function(m,s,l){var e=document.getElementById("err");if(e){e.styl
           renderHist(); refreshBeanList(); onBeanChange();
           pushAll(merged); // 統合結果をクラウドへ書き戻し（全端末で同一化）
           setState("同期済み（"+merged.length+"件）");
-          pullCups(); pullEsp(); // カッピング・エスプレッソも同期
+          pullCups(); pullEsp(); pullSyp(); // カッピング・エスプレッソ・サイフォンも同期
           syncing=false;
         }).catch(function(e){ setState("読込エラー（ローカルで動作）"); syncing=false; });
       }catch(e){ setState("読込エラー（ローカルで動作）"); syncing=false; }
@@ -1297,9 +1427,25 @@ window.onerror=function(m,s,l){var e=document.getElementById("err");if(e){e.styl
     function pushEsp(rec){ if(!ready||!uid||!rec)return; try{ db.ref("users/"+uid+"/espresso/"+safeKey(rec.id)).set(rec).catch(function(){}); }catch(e){} }
     function deleteEsp(id){ if(!ready||!uid||!id)return; try{ db.ref("users/"+uid+"/espresso/"+safeKey(id)).remove().catch(function(){}); }catch(e){} }
 
+    /* ---- サイフォンのクラウドミラー（同じ作法・別ツリー /siphon）---- */
+    function pullSyp(){
+      if(!ready||!uid)return;
+      try{
+        db.ref("users/"+uid+"/siphon").once("value").then(function(snap){
+          var cloud=[], val=snap.val();
+          if(val){ for(var k in val){ if(val.hasOwnProperty(k))cloud.push(val[k]); } }
+          var merged=mergeLists(getSyp(), cloud);
+          setSyp(merged); renderSypHist(); pushAllSyp(merged);
+        }).catch(function(){});
+      }catch(e){}
+    }
+    function pushAllSyp(list){ if(!ready||!uid)return; try{var obj={};for(var i=0;i<list.length;i++){obj[safeKey(list[i].id)]=list[i];}db.ref("users/"+uid+"/siphon").set(obj).catch(function(){});}catch(e){} }
+    function pushSyp(rec){ if(!ready||!uid||!rec)return; try{ db.ref("users/"+uid+"/siphon/"+safeKey(rec.id)).set(rec).catch(function(){}); }catch(e){} }
+    function deleteSyp(id){ if(!ready||!uid||!id)return; try{ db.ref("users/"+uid+"/siphon/"+safeKey(id)).remove().catch(function(){}); }catch(e){} }
+
     return { init:init, login:login, logout:logout, pushOne:pushOne, deleteOne:deleteOne,
              pushCup:pushCup, deleteCup:deleteCup, pushEsp:pushEsp, deleteEsp:deleteEsp,
-             isOn:function(){return !!(ready&&uid);} };
+             pushSyp:pushSyp, deleteSyp:deleteSyp, isOn:function(){return !!(ready&&uid);} };
   })();
 
   /* ---- 初期化 ---- */
@@ -1332,6 +1478,13 @@ window.onerror=function(m,s,l){var e=document.getElementById("err");if(e){e.styl
   var _espLot=$("lotSelEsp"); if(_espLot)_espLot.addEventListener("change",onEspLotChange);
   var _espDose=$("espDose"); if(_espDose)_espDose.addEventListener("input",updateEspRatio);
   var _espYield=$("espYield"); if(_espYield)_espYield.addEventListener("input",updateEspRatio);
+  /* サイフォン */
+  buildSypStars();
+  var _sypSave=$("sypSaveBtn"); if(_sypSave)_sypSave.addEventListener("click",saveSiphon);
+  var _sypCsv=$("sypCsvBtn"); if(_sypCsv)_sypCsv.addEventListener("click",exportSypCSV);
+  var _sypLot=$("lotSelSyp"); if(_sypLot)_sypLot.addEventListener("change",onSypLotChange);
+  var _sypDose=$("sypDose"); if(_sypDose)_sypDose.addEventListener("input",updateSypRatio);
+  var _sypWater=$("sypWater"); if(_sypWater)_sypWater.addEventListener("input",updateSypRatio);
   $("green").addEventListener("input",recalc);
   $("roasted").addEventListener("input",recalc);
   $("p3").addEventListener("click",function(){addTemp(3);});
@@ -1378,7 +1531,7 @@ window.onerror=function(m,s,l){var e=document.getElementById("err");if(e){e.styl
     b.addEventListener("click",function(){showSub(b.getAttribute("data-sub"));});
   })(_subBtns[_si]);}
   renderEvents();renderHist();refreshBeanList();recalc();onBeanChange();updateLiveDtr();updateBakeWarn();
-  fillCupLots();renderCupHist();fillEspLots();renderEspHist();
+  fillCupLots();renderCupHist();fillEspLots();renderEspHist();fillSypLots();renderSypHist();
   showTab("before"); // 初期表示＝焙煎前
   showSub("cup");     // 淹れる・味わうの既定サブタブ＝カッピング
   showMode("roast");  // 既定モード＝焙煎する（既存挙動そのまま）
