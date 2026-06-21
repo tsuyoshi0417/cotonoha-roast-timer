@@ -15,13 +15,22 @@
   body{margin:0;background:var(--bg);color:var(--ink);
     font-family:-apple-system,"Hiragino Sans","Hiragino Kaku Gothic ProN",sans-serif;
     padding:14px;max-width:760px;margin:0 auto}
-  /* 狭い画面（スマホ）＝今まで通り1カラム縦並び。.app/.col は素通し */
+  /* 3フェーズのタブ＝縦1カラム。各タブはCSSで表示/非表示（DOMからは消さない＝参照を壊さない）*/
   .app{display:block}
   .col{display:block}
+  .tab{display:none}
+  .tab.active{display:block}
+  /* タブバー（最上部・タイマーのさらに上）*/
+  .tabbar{display:flex;gap:8px;margin:8px 0 12px;position:-webkit-sticky;position:sticky;top:0;z-index:20;
+    background:var(--bg);padding:6px 0}
+  .tabbtn{flex:1;padding:13px 6px;font-size:15px;font-weight:700;border-radius:12px;
+    background:var(--panel2);color:var(--sub);border:1px solid var(--line);cursor:pointer;font-family:inherit;
+    min-height:52px}
+  .tabbtn.cur{background:var(--accent);color:#1b1207;border-color:transparent}
   h1{font-size:18px;font-weight:700;margin:2px 0 2px;letter-spacing:.04em}
   .tag{color:var(--sub);font-size:12px;margin-bottom:12px}
   .panel{background:var(--panel);border:1px solid var(--line);border-radius:14px;padding:14px;margin-bottom:12px}
-  .panel.sticky{position:-webkit-sticky;position:sticky;top:6px;z-index:10;
+  .panel.sticky{position:-webkit-sticky;position:sticky;top:60px;z-index:10;
     box-shadow:0 8px 20px rgba(0,0,0,.45)}
   label{display:block;font-size:12px;color:var(--sub);margin:0 0 4px}
   input,textarea{width:100%;background:var(--panel2);border:1px solid var(--line);
@@ -48,6 +57,18 @@
   .ev button{padding:9px;font-size:13px;background:var(--accent);color:#1b1207;border:0}
   .ev input{padding:8px;font-size:15px;text-align:center}
   .ev.done{border-color:var(--accent)}
+  /* 焼く中の節目＝大ボタン（温度欄なし・遠目で押せる）*/
+  .events.big .ev{padding:16px;gap:8px}
+  .events.big .ev b{font-size:16px}
+  .events.big .ev .t{font-size:24px}
+  .events.big .ev button{padding:16px;font-size:16px;min-height:56px}
+  .events.big .ev.done{background:var(--accent);border-color:transparent}
+  .events.big .ev.done b,.events.big .ev.done .t{color:#1b1207}
+  .events.big .ev.done button{background:#1b1207;color:var(--accent2)}
+  /* 進行中DTR（1ハゼ後だけ「今止めたら◯%」）*/
+  .ldtr{display:none;text-align:center;background:var(--panel2);border:1px solid var(--accent);
+    border-radius:12px;padding:12px;margin-top:10px;font-size:15px;color:var(--ink)}
+  .ldtr b{font-size:24px;color:var(--accent2);font-variant-numeric:tabular-nums}
   .stat{display:flex;justify-content:space-between;font-size:15px;padding:8px 2px;border-bottom:1px solid var(--line)}
   .stat b{color:var(--accent2);font-variant-numeric:tabular-nums}
   .acts{display:flex;gap:10px;margin-top:8px}
@@ -61,15 +82,10 @@
   .err{display:none;background:#3a1c16;border:1px solid var(--warn);color:#f6d9cf;
     padding:10px;border-radius:10px;font-size:12px;margin-bottom:12px;white-space:pre-wrap}
 
-  /* 広い画面（iPad横/縦・PC）＝2カラム。左＝焼く時に使う物／右＝設定と前後 */
+  /* 広い画面（iPad）＝中央寄せで読みやすい幅に保つ（3タブは縦1カラムのまま）*/
   @media (min-width:700px){
-    body{max-width:1120px}
-    .app{display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1fr);gap:14px;align-items:start}
-    .col{min-width:0}
-    /* パネル下の余白はグリッドのgapに任せ、列の最後のパネルは詰める */
-    .col .panel:last-child{margin-bottom:0}
-    /* タイマーは左カラム上部でsticky（焼きながら常に見える）*/
-    .panel.sticky{top:14px}
+    body{max-width:820px}
+    .panel.sticky{top:64px}
   }
 </style>
 <!-- Firebase compat CDN（プレーンHTML用・安定版に固定）。読込失敗してもアプリ本体は動く（下のJSがtry/catchで隔離） -->
@@ -82,43 +98,17 @@
   <h1>言ノ葉 焙煎タイマー <span style="color:var(--sub);font-size:12px">v0</span></h1>
   <div class="tag">珈悦（こうえつ）陶器・遠赤外線 250g｜まず焙煎を本物に</div>
 
+  <!-- 3フェーズのタブ（最上部・タイマーのさらに上）-->
+  <div class="tabbar" id="tabbar">
+    <button type="button" class="tabbtn cur" id="tabBtnBefore" data-tab="before">焼く前</button>
+    <button type="button" class="tabbtn" id="tabBtnDuring" data-tab="during">焼く中</button>
+    <button type="button" class="tabbtn" id="tabBtnAfter" data-tab="after">焼いた後</button>
+  </div>
+
   <div class="app">
-    <!-- 左カラム＝焼いてる時に使う物（タイマー／温度カーブ／節目）。広い画面では一画面に集約 -->
-    <div class="col col-left" id="colLeft">
 
-      <div class="panel sticky">
-        <div class="timer" id="timer">00:00</div>
-        <div class="ctrl">
-          <button class="start" id="startBtn" type="button">スタート</button>
-          <button class="reset" id="resetBtn" type="button">リセット</button>
-        </div>
-        <div class="toggle"><input type="checkbox" id="beep"><label for="beep" style="margin:0">30秒ごとに音で知らせる</label></div>
-      </div>
-
-      <div class="panel">
-        <label>温度カーブ（随時更新）</label>
-        <canvas id="graph" style="width:100%;height:170px;display:block"></canvas>
-        <div style="margin-top:10px"><label>現在温度 (℃)</label><input id="curTemp" type="number" inputmode="decimal" placeholder="まず今の温度を入れる"></div>
-        <div class="ctrl" style="margin-top:8px">
-          <button type="button" id="p3">＋3℃</button>
-          <button type="button" id="p5">＋5℃</button>
-          <button type="button" id="p10">＋10℃</button>
-        </div>
-        <div class="ctrl" style="margin-top:8px">
-          <button type="button" id="pNow">この値で記録（針を読んで補正）</button>
-        </div>
-        <div class="note">上がるごとにタップで点を記録。序盤は＋5/＋10、<b>1ハゼ〜2ハゼの大事な所は＋3</b>で細かく。タップを飛ばすと絶対温度がズレるので、時々「この値で記録」で実測の針を読んで補正。</div>
-      </div>
-
-      <div class="panel">
-        <label style="margin-bottom:8px">節目（焼きながらタップ＝その時刻を記録。温度は後から入れてもOK）</label>
-        <div class="events" id="events"></div>
-      </div>
-
-    </div>
-
-    <!-- 右カラム＝設定と前後（同期／豆・条件／焼き上がり／履歴） -->
-    <div class="col col-right" id="colRight">
+    <!-- ============ 焼く前 ============ -->
+    <div class="tab active" id="tabBefore">
 
       <div class="panel" id="syncPanel" style="display:none">
         <div class="syncrow" style="display:flex;align-items:center;gap:10px;flex-wrap:wrap">
@@ -147,17 +137,59 @@
           <div><label>生豆量 (g)</label><input id="green" type="number" inputmode="decimal" value="150"></div>
           <div><label>室温 (℃)</label><input id="room" type="number" inputmode="decimal" value="20"></div>
         </div>
-        <div style="margin-top:10px">
-          <label>火力</label>
-          <div class="chips" id="heatChips">
-            <button type="button" class="chip" data-v="弱">弱</button>
-            <button type="button" class="chip" data-v="中弱">中弱</button>
-            <button type="button" class="chip" data-v="中">中</button>
-            <button type="button" class="chip" data-v="中強">中強</button>
-            <button type="button" class="chip" data-v="強">強</button>
-          </div>
+        <div class="note" style="margin-top:12px">準備ができたら「焼く中」へ。<b>スタートか投入の記録で自動的に「焼く中」に切り替わります。</b></div>
+      </div>
+
+    </div>
+
+    <!-- ============ 焼く中（最小・これだけ）============ -->
+    <div class="tab" id="tabDuring">
+
+      <div class="panel sticky">
+        <div class="timer" id="timer">00:00</div>
+        <div class="ctrl">
+          <button class="start" id="startBtn" type="button">スタート</button>
+          <button class="reset" id="resetBtn" type="button">リセット</button>
+        </div>
+        <div class="toggle"><input type="checkbox" id="beep"><label for="beep" style="margin:0">30秒ごとに音で知らせる</label></div>
+      </div>
+
+      <div class="panel">
+        <label style="margin-bottom:8px">節目（タップ＝その時刻を即記録。温度は「焼いた後」で落ち着いて）</label>
+        <div class="events big" id="events"></div>
+        <div class="ldtr" id="liveDtr">今止めたら DTR <b id="liveDtrVal">—</b></div>
+      </div>
+
+      <div class="panel">
+        <label>火力（焼きながら変更できます）</label>
+        <div class="chips" id="heatChips">
+          <button type="button" class="chip" data-v="弱">弱</button>
+          <button type="button" class="chip" data-v="中弱">中弱</button>
+          <button type="button" class="chip" data-v="中">中</button>
+          <button type="button" class="chip" data-v="中強">中強</button>
+          <button type="button" class="chip" data-v="強">強</button>
         </div>
       </div>
+
+      <div class="panel">
+        <label>温度カーブ（随時更新）</label>
+        <canvas id="graph" style="width:100%;height:170px;display:block"></canvas>
+        <div style="margin-top:10px"><label>現在温度 (℃)</label><input id="curTemp" type="number" inputmode="decimal" placeholder="まず今の温度を入れる"></div>
+        <div class="ctrl" style="margin-top:8px">
+          <button type="button" id="p3">＋3℃</button>
+          <button type="button" id="p5">＋5℃</button>
+          <button type="button" id="p10">＋10℃</button>
+        </div>
+        <div class="ctrl" style="margin-top:8px">
+          <button type="button" id="pNow">この値で記録（針を読んで補正）</button>
+        </div>
+        <div class="note">上がるごとにタップで点を記録。序盤は＋5/＋10、<b>1ハゼ〜2ハゼの大事な所は＋3</b>で細かく。タップを飛ばすと絶対温度がズレるので、時々「この値で記録」で実測の針を読んで補正。</div>
+      </div>
+
+    </div>
+
+    <!-- ============ 焼いた後 ============ -->
+    <div class="tab" id="tabAfter">
 
       <div class="panel">
         <label>焼き上がり</label>
@@ -169,7 +201,15 @@
           <div class="stat"><span>全焙煎時間</span><b id="total">—</b></div>
           <div class="stat"><span>DTR%（発達率）</span><b id="dtr">—</b></div>
         </div>
-        <div style="margin-top:10px"><label>メモ（匂い・色・次回への一手）</label><textarea id="memo" rows="2"></textarea></div>
+      </div>
+
+      <div class="panel">
+        <label style="margin-bottom:8px">各節目（時刻はそのまま・ここで温度を落ち着いて入れる）</label>
+        <div class="events" id="eventsAfter"></div>
+      </div>
+
+      <div class="panel">
+        <label>メモ（匂い・色・次回への一手）</label><textarea id="memo" rows="2"></textarea>
         <div class="acts">
           <button class="save" id="saveBtn" type="button">この焙煎を保存</button>
           <button id="csvBtn" type="button">CSV出力</button>
@@ -183,6 +223,7 @@
       </div>
 
     </div>
+
   </div>
 
 <script>
@@ -201,7 +242,7 @@ window.onerror=function(m,s,l){var e=document.getElementById("err");if(e){e.styl
     {key:"sc",name:"2ハゼ開始"},{key:"drop",name:"煎り止め"}
   ];
   var running=false,t0=0,elapsed=0,tick=null,lastBeep=0,wakeLock=null;
-  var marks={},temps={},cards={},selProc="",selHeat="",series=[];
+  var marks={},temps={},cards={},cardsA={},selProc="",selHeat="",series=[];
 
   /* ---- 選択式チップ（精製・火力）---- */
   function getProc(){ if(selProc==="その他"){var o=$("procOther").value;return o?o:"その他";} return selProc; }
@@ -218,29 +259,77 @@ window.onerror=function(m,s,l){var e=document.getElementById("err");if(e){e.styl
     })(chips[i]);}
   }
 
-  /* ---- 節目カード（押したカードだけ更新＝温度入力を壊さない）---- */
+  /* ---- 節目カード（2ビュー）----
+     焼く中（#events.big）＝大ボタン・温度欄なし・時刻だけ即記録
+     焼いた後（#eventsAfter）＝時刻表示＋温度入力欄（落ち着いて温度を入れる）
+     どちらも同じ marks/temps を共有。押したカードだけ更新＝温度入力を壊さない */
   function renderEvents(){
+    /* 焼く中＝大ボタン・温度欄なし */
     var wrap=$("events");wrap.innerHTML="";cards={};
     for(var i=0;i<EVENTS.length;i++){(function(e){
       var done=(marks[e.key]!==undefined);
       var div=document.createElement("div");
       div.className="ev"+(done?" done":"");
       div.innerHTML='<b>'+e.name+'</b><div class="t">'+(done?fmt(marks[e.key]):"—")+'</div>'+
-        '<button type="button">'+(done?"記録し直す":"記録")+'</button>'+
-        '<input type="number" inputmode="decimal" placeholder="温度℃" value="'+nn(temps[e.key])+'">';
-      var btn=div.querySelector("button"), inp=div.querySelector("input");
+        '<button type="button">'+(done?"記録し直す":"記録")+'</button>';
+      var btn=div.querySelector("button");
       btn.addEventListener("click",function(){mark(e.key);});
-      inp.addEventListener("input",function(){temps[e.key]=this.value;});
       cards[e.key]={div:div,t:div.querySelector(".t"),btn:btn};
       wrap.appendChild(div);
     })(EVENTS[i]);}
+    /* 焼いた後＝時刻＋温度入力 */
+    var wrapA=$("eventsAfter");if(wrapA){wrapA.innerHTML="";cardsA={};
+      for(var j=0;j<EVENTS.length;j++){(function(e){
+        var done=(marks[e.key]!==undefined);
+        var div=document.createElement("div");
+        div.className="ev"+(done?" done":"");
+        div.innerHTML='<b>'+e.name+'</b><div class="t">'+(done?fmt(marks[e.key]):"—")+'</div>'+
+          '<button type="button">'+(done?"記録し直す":"記録")+'</button>'+
+          '<input type="number" inputmode="decimal" placeholder="温度℃" value="'+nn(temps[e.key])+'">';
+        var btn=div.querySelector("button"), inp=div.querySelector("input");
+        btn.addEventListener("click",function(){mark(e.key);});
+        inp.addEventListener("input",function(){temps[e.key]=this.value;});
+        cardsA[e.key]={div:div,t:div.querySelector(".t"),btn:btn};
+        wrapA.appendChild(div);
+      })(EVENTS[j]);}
+    }
   }
   function mark(key){
-    if(key==="charge"){resetTime();marks.charge=0;if(!running)startRun();}
-    else{marks[key]=elapsed;if(key==="drop")stopRun();}
+    if(key==="charge"){resetTime();marks.charge=0;if(!running)startRun();showTab("during");}
+    else{marks[key]=elapsed;if(key==="drop"){stopRun();showTab("after");}}
     var c=cards[key];
     if(c){c.div.className="ev done";c.t.textContent=fmt(marks[key]);c.btn.textContent="記録し直す";}
-    recalc();
+    var ca=cardsA[key];
+    if(ca){ca.div.className="ev done";ca.t.textContent=fmt(marks[key]);ca.btn.textContent="記録し直す";}
+    recalc();updateLiveDtr();
+  }
+
+  /* ---- タブ切替（DOMは消さずCSSで表示/非表示）---- */
+  function showTab(name){
+    var tabs=["before","during","after"];
+    for(var i=0;i<tabs.length;i++){
+      var n=tabs[i];
+      var panel=$("tab"+n.charAt(0).toUpperCase()+n.slice(1));
+      var btn=$("tabBtn"+n.charAt(0).toUpperCase()+n.slice(1));
+      if(panel){ if(n===name)panel.classList.add("active");else panel.classList.remove("active"); }
+      if(btn){ if(n===name)btn.classList.add("cur");else btn.classList.remove("cur"); }
+    }
+    if(name==="during"){ drawGraph(); }     // 焼く中表示時にカーブを描き直す（非表示時の幅0対策）
+    try{ window.scrollTo(0,0); }catch(e){}
+  }
+
+  /* ---- 進行中DTR（1ハゼ後だけ「今止めたら◯%」・煎り止め前のみ）---- */
+  function updateLiveDtr(){
+    var box=$("liveDtr"), val=$("liveDtrVal"); if(!box||!val)return;
+    var fc=marks.fc, drop=marks.drop;
+    if(fc!==undefined && drop===undefined && elapsed>0){
+      var d=(elapsed-fc)/elapsed*100;
+      if(d<0)d=0;
+      val.textContent=d.toFixed(1)+" %";
+      box.style.display="block";
+    } else {
+      box.style.display="none";
+    }
   }
 
   /* ---- タイマー＋画面スリープ防止（Wake Lock）---- */
@@ -253,7 +342,7 @@ window.onerror=function(m,s,l){var e=document.getElementById("err");if(e){e.styl
   function toggleRun(){if(running)stopRun();else startRun();}
   function resetTime(){elapsed=0;t0=nowSec();$("timer").textContent="00:00";}
   function loop(){
-    elapsed=nowSec()-t0;$("timer").textContent=fmt(elapsed);drawGraph();
+    elapsed=nowSec()-t0;$("timer").textContent=fmt(elapsed);drawGraph();updateLiveDtr();
     if($("beep").checked){var b=Math.floor(elapsed/30);if(b>lastBeep){lastBeep=b;doBeep();}}
   }
   function doBeep(){
@@ -282,7 +371,8 @@ window.onerror=function(m,s,l){var e=document.getElementById("err");if(e){e.styl
     selHeat="";
     var all=document.querySelectorAll(".chip");for(var k=0;k<all.length;k++)all[k].classList.remove("sel");
     series=[];$("curTemp").value="";
-    $("timer").textContent="00:00";renderEvents();recalc();onBeanChange();
+    $("timer").textContent="00:00";renderEvents();recalc();onBeanChange();updateLiveDtr();
+    showTab("before");
   }
 
   /* ---- ロット番号＆ID（同じ豆・同じ日で何回目か＝将来カッピング結果を紐付ける鍵）---- */
@@ -557,7 +647,13 @@ window.onerror=function(m,s,l){var e=document.getElementById("err");if(e){e.styl
   window.addEventListener("resize",drawGraph);
   var _lin=$("loginBtn"); if(_lin)_lin.addEventListener("click",function(){Cloud.login();});
   var _lout=$("logoutBtn"); if(_lout)_lout.addEventListener("click",function(){Cloud.logout();});
-  renderEvents();renderHist();refreshBeanList();recalc();onBeanChange();
+  /* タブバー＝手動切替 */
+  var _tabBtns=document.querySelectorAll(".tabbtn");
+  for(var _ti=0;_ti<_tabBtns.length;_ti++){(function(b){
+    b.addEventListener("click",function(){showTab(b.getAttribute("data-tab"));});
+  })(_tabBtns[_ti]);}
+  renderEvents();renderHist();refreshBeanList();recalc();onBeanChange();updateLiveDtr();
+  showTab("before"); // 初期表示＝焼く前
   Cloud.init(); // クラウド同期を起動（失敗してもここまでで本体は動いている）
 })();
 </script>
