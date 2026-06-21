@@ -103,6 +103,21 @@
   .note b{color:var(--ink)}
   .err{display:none;background:#f7e3da;border:1px solid var(--warn);color:#8a3d23;
     padding:10px;border-radius:10px;font-size:12px;margin-bottom:12px;white-space:pre-wrap}
+  /* カッピング：6軸スライダー（打たず動かす・大きいつまみ・即フィードバック）*/
+  textarea{resize:vertical}
+  .scorerow{display:flex;align-items:center;gap:12px;margin:12px 0}
+  .scorerow .nm{flex:0 0 56px;font-size:15px;font-weight:700;color:var(--ink)}
+  .scorerow input[type=range]{flex:1;width:auto;-webkit-appearance:none;appearance:none;height:10px;
+    border-radius:999px;background:var(--panel2);border:1px solid var(--line);padding:0;margin:0}
+  .scorerow input[type=range]::-webkit-slider-thumb{-webkit-appearance:none;appearance:none;
+    width:32px;height:32px;border-radius:50%;background:var(--accent);border:3px solid #fff;
+    box-shadow:0 1px 4px rgba(0,0,0,.28);cursor:pointer}
+  .scorerow input[type=range]::-moz-range-thumb{width:32px;height:32px;border-radius:50%;
+    background:var(--accent);border:3px solid #fff;cursor:pointer}
+  .scorerow .vl{flex:0 0 42px;text-align:right;font-variant-numeric:tabular-nums;
+    font-size:19px;font-weight:700;color:var(--accent2)}
+  .cuptotal{text-align:right;margin-top:8px;font-size:14px;color:var(--sub)}
+  .cuptotal b{font-size:24px;color:var(--accent2);font-variant-numeric:tabular-nums}
 
   /* 広い画面（iPad）＝中央寄せで読みやすい幅に保つ（焙煎前/後は縦1カラムのまま）*/
   @media (min-width:700px){
@@ -341,12 +356,42 @@
     <!-- カッピング -->
     <div class="subtab active" id="brewCup">
       <div class="panel">
-        <label>ロット（焙煎を選ぶ）</label>
-        <select id="lotSelCup"></select>
-        <div class="note" id="lotEmptyCup" style="display:none">焙煎を記録するとここで豆（ロット）を選べます。</div>
+        <label>対象（焙煎を選ぶ／無ければ豆名を手入力）</label>
+        <select id="lotSelCup" style="margin-bottom:8px"></select>
+        <div class="note" id="lotEmptyCup" style="display:none;margin-bottom:8px">保存した焙煎がまだ無いので、下に豆名を書けば今すぐ記録できる。</div>
+        <div class="row">
+          <div><label>豆名</label><input id="cupBean" placeholder="例：エチオピア／松屋ブレンド"></div>
+          <div style="flex:.7"><label>焙煎度など（任意）</label><input id="cupRoastNote" placeholder="中煎り 等"></div>
+        </div>
+        <label style="margin-top:8px">淹れ方（毎回そろえる＝ブレない再現が先）</label>
+        <input id="cupBrew" placeholder="例：粉12g／湯200ml／92℃／2:30">
       </div>
+
       <div class="panel">
-        <div class="ph">ここは焙煎が数本溜まってから作る（味覚コーチ設計の6軸＋Brix）。エスプレッソはパボーニで何十杯か引いてから。</div>
+        <label>官能 6軸（各10点・つまみを動かす）</label>
+        <div id="cupScores"></div>
+        <div class="cuptotal">合計 <b id="cupTotal">30.0</b> <span style="font-size:13px">/ 60</span></div>
+        <label style="margin-top:12px">フレーバー（自由メモ）</label>
+        <textarea id="cupFlavor" rows="2" placeholder="ベリー、柑橘、ナッツ、チョコ…感じたまま"></textarea>
+      </div>
+
+      <div class="panel">
+        <label>数値（官能とは別物。まず予測→測って答え合わせ＝舌の訓練）</label>
+        <div class="row">
+          <div><label>予測Brix</label><input id="cupBrixPred" type="number" inputmode="decimal" placeholder="測る前の予想"></div>
+          <div><label>実測Brix</label><input id="cupBrix" type="number" inputmode="decimal" placeholder="アタゴ"></div>
+          <div><label>TDS%</label><input id="cupTds" type="number" inputmode="decimal" placeholder="任意"></div>
+        </div>
+      </div>
+
+      <div class="panel">
+        <div class="acts">
+          <button type="button" class="save" id="cupSaveBtn">この一杯を保存</button>
+          <button type="button" id="cupCsvBtn" style="flex:.6">CSV出力</button>
+        </div>
+        <div class="note">保存先＝この端末＋（ログイン中なら）クラウド同期。<b>CSVが本当のバックアップ。</b></div>
+        <label style="margin-top:12px">カッピング履歴</label>
+        <div class="hist" id="cupHist">まだ無し</div>
       </div>
     </div>
 
@@ -537,7 +582,7 @@ window.onerror=function(m,s,l){var e=document.getElementById("err");if(e){e.styl
       if(box){ if(n===name)box.classList.add("active");else box.classList.remove("active"); }
       if(btn){ if(n===name)btn.classList.add("cur");else btn.classList.remove("cur"); }
     }
-    if(name==="brew"){ populateLots(); } // 開くたび最新の保存焙煎でロット選択を作り直す
+    if(name==="brew"){ populateLots(); fillCupLots(); renderCupHist(); } // 開くたび最新の保存焙煎でロット選択を作り直す
     try{ window.scrollTo(0,0); }catch(e){}
   }
 
@@ -557,7 +602,7 @@ window.onerror=function(m,s,l){var e=document.getElementById("err");if(e){e.styl
          3サブタブ共通。最新（list先頭＝新しい順）を既定選択。保存ゼロなら案内文を出す。 ---- */
   function populateLots(){
     var list=getList();
-    var sels=[{s:"lotSelCup",e:"lotEmptyCup"},{s:"lotSelEsp",e:"lotEmptyEsp"},{s:"lotSelSyp",e:"lotEmptySyp"}];
+    var sels=[{s:"lotSelEsp",e:"lotEmptyEsp"},{s:"lotSelSyp",e:"lotEmptySyp"}]; // Cupは専用フォーム(fillCupLots)で扱う
     var opts="";
     for(var i=0;i<list.length;i++){
       var x=list[i];
@@ -784,6 +829,98 @@ window.onerror=function(m,s,l){var e=document.getElementById("err");if(e){e.styl
     document.body.appendChild(a);a.click();document.body.removeChild(a);
   }
 
+  /* ============ カッピング（淹れる・味わう）============
+     6軸×10点＋フレーバー＋数値(別枠)。焙煎ロットに紐付く（lotId）が、
+     保存焙煎が無くても豆名手入力で記録できる（端末をまたいでも使えるように）。
+     保存＝localStorage cotonoha_cuppings ＋（ログイン中は）クラウドミラー。SSOT=50_カッピング.md */
+  var CUP_AXES=[{k:"aroma",n:"香り"},{k:"acidity",n:"酸"},{k:"sweet",n:"甘み"},{k:"body",n:"コク"},{k:"after",n:"後味"},{k:"overall",n:"総合"}];
+  function getCups(){try{return JSON.parse(localStorage.getItem("cotonoha_cuppings")||"[]");}catch(e){return [];}}
+  function setCups(l){try{localStorage.setItem("cotonoha_cuppings",JSON.stringify(l||[]));}catch(e){}}
+  function buildCupSliders(){
+    var box=$("cupScores"); if(!box)return; var html="";
+    for(var i=0;i<CUP_AXES.length;i++){var a=CUP_AXES[i];
+      html+='<div class="scorerow"><span class="nm">'+a.n+'</span>'+
+        '<input type="range" min="0" max="10" step="0.5" value="5" id="cs_'+a.k+'">'+
+        '<span class="vl" id="cv_'+a.k+'">5.0</span></div>';}
+    box.innerHTML=html;
+    for(var j=0;j<CUP_AXES.length;j++){(function(a){
+      var r=$("cs_"+a.k); if(r)r.addEventListener("input",function(){ $("cv_"+a.k).textContent=parseFloat(r.value).toFixed(1); updateCupTotal(); });
+    })(CUP_AXES[j]);}
+    updateCupTotal();
+  }
+  function updateCupTotal(){var t=0;for(var i=0;i<CUP_AXES.length;i++){var r=$("cs_"+CUP_AXES[i].k);if(r)t+=parseFloat(r.value)||0;}var el=$("cupTotal");if(el)el.textContent=t.toFixed(1);}
+  function fillCupLots(){
+    var sel=$("lotSelCup"), emp=$("lotEmptyCup"); if(!sel)return;
+    var list=getList(), opts='<option value="">— 豆名を手入力 —</option>';
+    for(var i=0;i<list.length;i++){var x=list[i];
+      var lotLabel=(x.lot!==undefined&&x.lot!==null&&x.lot!=="")?(" #"+x.lot):"";
+      var label=(x.bean||"(豆名なし)")+lotLabel+"｜"+(x.day||x.date||"");
+      opts+='<option value="'+String(recId(x)).replace(/"/g,"&quot;")+'">'+label.replace(/</g,"&lt;")+'</option>';}
+    sel.innerHTML=opts; sel.style.display="block";
+    if(emp)emp.style.display=list.length?"none":"block";
+  }
+  function onCupLotChange(){
+    var sel=$("lotSelCup"); if(!sel||!sel.value)return; var list=getList();
+    for(var i=0;i<list.length;i++){ if(String(recId(list[i]))===String(sel.value)){ var x=list[i];
+      var lotLabel=(x.lot!==undefined&&x.lot!==null&&x.lot!=="")?(" #"+x.lot):"";
+      if($("cupBean"))$("cupBean").value=(x.bean||"")+lotLabel; break; } }
+  }
+  function saveCupping(){
+    var bean=($("cupBean").value||"").trim();
+    if(!bean){ alert("豆名を入れてね（焙煎を選ぶか、手で書く）"); return; }
+    var d=new Date();
+    var scores={},total=0;
+    for(var i=0;i<CUP_AXES.length;i++){var v=parseFloat($("cs_"+CUP_AXES[i].k).value)||0;scores[CUP_AXES[i].k]=v;total+=v;}
+    var rec={
+      id:"cup|"+d.getTime(),
+      date:d.getFullYear()+"/"+(d.getMonth()+1)+"/"+d.getDate()+" "+("0"+d.getHours()).slice(-2)+":"+("0"+d.getMinutes()).slice(-2),
+      lotId:$("lotSelCup")?$("lotSelCup").value:"", bean:bean,
+      roastNote:($("cupRoastNote").value||"").trim(), brew:($("cupBrew").value||"").trim(),
+      scores:scores, total:total, flavor:($("cupFlavor").value||"").trim(),
+      brixPred:$("cupBrixPred").value, brix:$("cupBrix").value, tds:$("cupTds").value
+    };
+    var list=getCups(); list.unshift(rec); setCups(list);
+    Cloud.pushCup(rec);
+    renderCupHist();
+    /* 次の一杯のため官能・数値はリセット（豆名/淹れ方は残す＝続けて飲み比べやすい）*/
+    for(var k=0;k<CUP_AXES.length;k++){var r=$("cs_"+CUP_AXES[k].k);if(r){r.value=5;$("cv_"+CUP_AXES[k].k).textContent="5.0";}}
+    updateCupTotal();
+    $("cupFlavor").value="";$("cupBrixPred").value="";$("cupBrix").value="";$("cupTds").value="";
+    alert("カッピングを保存した"+(Cloud.isOn()?"（端末＋クラウド）":"（この端末内）")+"。バックアップはCSVで。");
+  }
+  function renderCupHist(){
+    var list=getCups(), h=$("cupHist"); if(!h)return;
+    if(!list.length){h.textContent="まだ無し";return;}
+    var out="";
+    for(var i=0;i<Math.min(20,list.length);i++){var x=list[i];
+      var bx=(nn(x.brix)!=="")?("｜Brix"+x.brix):"";
+      var fv=x.flavor?("｜"+String(x.flavor).replace(/</g,"&lt;")):"";
+      var rid=String(x.id).replace(/"/g,"&quot;");
+      out+='<div style="display:flex;align-items:center;gap:8px"><span style="flex:1">'+x.date+'｜'+String(x.bean||"").replace(/</g,"&lt;")+'｜'+(x.total!==undefined?Number(x.total).toFixed(1):"-")+'/60'+bx+fv+'</span>'+
+        '<button type="button" class="delCup" data-id="'+rid+'" style="flex:0 0 auto;width:auto;padding:6px 12px;font-size:12px;background:transparent;color:var(--warn);border:1px solid var(--line)">削除</button></div>';}
+    h.innerHTML=out;
+    var dbtns=h.querySelectorAll(".delCup");
+    for(var k=0;k<dbtns.length;k++){(function(b){b.addEventListener("click",function(){deleteCupping(b.getAttribute("data-id"));});})(dbtns[k]);}
+  }
+  function deleteCupping(id){
+    if(!confirm("このカッピングを削除する？（元に戻せません）"))return;
+    var list=getCups(), out=[];
+    for(var i=0;i<list.length;i++){ if(String(list[i].id)!==String(id))out.push(list[i]); }
+    setCups(out); Cloud.deleteCup(id); renderCupHist();
+  }
+  function exportCupsCSV(){
+    var list=getCups();
+    function c(v){return String(nn(v)).replace(/[\n,]/g," ");}
+    var head=["日時","豆","焙煎メモ","淹れ方","香り","酸","甘み","コク","後味","総合","合計","フレーバー","予測Brix","実測Brix","TDS"];
+    var lines=[head.join(",")];
+    for(var i=0;i<list.length;i++){var x=list[i],s=x.scores||{};
+      lines.push([c(x.date),c(x.bean),c(x.roastNote),c(x.brew),nn(s.aroma),nn(s.acidity),nn(s.sweet),nn(s.body),nn(s.after),nn(s.overall),nn(x.total),c(x.flavor),nn(x.brixPred),nn(x.brix),nn(x.tds)].join(","));}
+    var blob=new Blob(["﻿"+lines.join("\n")],{type:"text/csv"});
+    var a=document.createElement("a");a.href=URL.createObjectURL(blob);
+    a.download="カッピングlog_"+new Date().toISOString().slice(0,10)+".csv";
+    document.body.appendChild(a);a.click();document.body.removeChild(a);
+  }
+
   /* ---- 温度カーブ ---- */
   function recordPoint(temp){
     if(temp===null||isNaN(temp))return;
@@ -977,6 +1114,7 @@ window.onerror=function(m,s,l){var e=document.getElementById("err");if(e){e.styl
           renderHist(); refreshBeanList(); onBeanChange();
           pushAll(merged); // 統合結果をクラウドへ書き戻し（全端末で同一化）
           setState("同期済み（"+merged.length+"件）");
+          pullCups(); // カッピングも同期
           syncing=false;
         }).catch(function(e){ setState("読込エラー（ローカルで動作）"); syncing=false; });
       }catch(e){ setState("読込エラー（ローカルで動作）"); syncing=false; }
@@ -1001,7 +1139,24 @@ window.onerror=function(m,s,l){var e=document.getElementById("err");if(e){e.styl
       try{ db.ref("users/"+uid+"/roasts/"+safeKey(id)).remove().catch(function(){}); }catch(e){}
     }
 
-    return { init:init, login:login, logout:logout, pushOne:pushOne, deleteOne:deleteOne, isOn:function(){return !!(ready&&uid);} };
+    /* ---- カッピングのクラウドミラー（roastsと同じ作法・別ツリー /cuppings）---- */
+    function pullCups(){
+      if(!ready||!uid)return;
+      try{
+        db.ref("users/"+uid+"/cuppings").once("value").then(function(snap){
+          var cloud=[], val=snap.val();
+          if(val){ for(var k in val){ if(val.hasOwnProperty(k))cloud.push(val[k]); } }
+          var merged=mergeLists(getCups(), cloud); // idで union（cupはid一意＝衝突なし）
+          setCups(merged); renderCupHist(); pushAllCups(merged);
+        }).catch(function(){});
+      }catch(e){}
+    }
+    function pushAllCups(list){ if(!ready||!uid)return; try{var obj={};for(var i=0;i<list.length;i++){obj[safeKey(list[i].id)]=list[i];}db.ref("users/"+uid+"/cuppings").set(obj).catch(function(){});}catch(e){} }
+    function pushCup(rec){ if(!ready||!uid||!rec)return; try{ db.ref("users/"+uid+"/cuppings/"+safeKey(rec.id)).set(rec).catch(function(){}); }catch(e){} }
+    function deleteCup(id){ if(!ready||!uid||!id)return; try{ db.ref("users/"+uid+"/cuppings/"+safeKey(id)).remove().catch(function(){}); }catch(e){} }
+
+    return { init:init, login:login, logout:logout, pushOne:pushOne, deleteOne:deleteOne,
+             pushCup:pushCup, deleteCup:deleteCup, isOn:function(){return !!(ready&&uid);} };
   })();
 
   /* ---- 初期化 ---- */
@@ -1022,6 +1177,11 @@ window.onerror=function(m,s,l){var e=document.getElementById("err");if(e){e.styl
   $("resetBtn").addEventListener("click",resetAll);
   $("saveBtn").addEventListener("click",saveRoast);
   $("csvBtn").addEventListener("click",exportCSV);
+  /* カッピング */
+  buildCupSliders();
+  var _cupSave=$("cupSaveBtn"); if(_cupSave)_cupSave.addEventListener("click",saveCupping);
+  var _cupCsv=$("cupCsvBtn"); if(_cupCsv)_cupCsv.addEventListener("click",exportCupsCSV);
+  var _cupLot=$("lotSelCup"); if(_cupLot)_cupLot.addEventListener("change",onCupLotChange);
   $("green").addEventListener("input",recalc);
   $("roasted").addEventListener("input",recalc);
   $("p3").addEventListener("click",function(){addTemp(3);});
@@ -1068,6 +1228,7 @@ window.onerror=function(m,s,l){var e=document.getElementById("err");if(e){e.styl
     b.addEventListener("click",function(){showSub(b.getAttribute("data-sub"));});
   })(_subBtns[_si]);}
   renderEvents();renderHist();refreshBeanList();recalc();onBeanChange();updateLiveDtr();updateBakeWarn();
+  fillCupLots();renderCupHist();
   showTab("before"); // 初期表示＝焙煎前
   showSub("cup");     // 淹れる・味わうの既定サブタブ＝カッピング
   showMode("roast");  // 既定モード＝焙煎する（既存挙動そのまま）
