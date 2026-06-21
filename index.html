@@ -254,9 +254,9 @@ window.onerror=function(m,s,l){var e=document.getElementById("err");if(e){e.styl
     o.curve=series.slice();
     return o;
   }
-  function getList(){try{return JSON.parse(localStorage.getItem("kotonoha_roasts")||"[]");}catch(e){return [];}}
+  function getList(){try{return JSON.parse(localStorage.getItem("cotonoha_roasts")||"[]");}catch(e){return [];}}
   function saveRoast(){var list=getList();list.unshift(collect());
-    try{localStorage.setItem("kotonoha_roasts",JSON.stringify(list));}catch(e){}
+    try{localStorage.setItem("cotonoha_roasts",JSON.stringify(list));}catch(e){}
     renderHist();alert("保存した（この端末内）。バックアップはCSV出力で。");}
   function renderHist(){
     var list=getList(),h=$("hist");
