@@ -45,6 +45,10 @@
   .acts .save{background:var(--accent);color:#1b1207;border:0}
   .toggle{display:flex;align-items:center;gap:8px;color:var(--sub);font-size:13px;margin-top:8px}
   .toggle input{width:auto}
+  .chips{display:flex;flex-wrap:wrap;gap:8px;margin-top:2px}
+  .chip{flex:0 0 auto;padding:11px 16px;font-size:14px;font-weight:600;background:var(--panel2);
+    color:var(--ink);border:1px solid var(--line);border-radius:999px}
+  .chip.sel{background:var(--accent);color:#1b1207;border-color:transparent}
   .hist{font-size:13px;color:var(--sub)}
   .hist div{padding:6px 0;border-bottom:1px solid var(--line)}
   .note{color:var(--sub);font-size:11px;line-height:1.5;margin-top:6px}
@@ -58,9 +62,17 @@
   <div class="tag">珈悦（こうえつ）陶器・遠赤外線 250g｜まず焙煎を本物に</div>
 
   <div class="panel">
-    <div class="row">
-      <div><label>豆（産地/銘柄）</label><input id="bean" placeholder="例）エチオピア イルガチェフェ"></div>
-      <div style="flex:.5"><label>精製</label><input id="proc" placeholder="W / N"></div>
+    <div><label>豆（産地/銘柄）</label><input id="bean" placeholder="例）エチオピア イルガチェフェ"></div>
+    <div style="margin-top:10px">
+      <label>精製</label>
+      <div class="chips" id="procChips">
+        <button type="button" class="chip" data-v="ウォッシュト">ウォッシュト</button>
+        <button type="button" class="chip" data-v="ナチュラル">ナチュラル</button>
+        <button type="button" class="chip" data-v="ハニー">ハニー</button>
+        <button type="button" class="chip" data-v="アナエロビック">アナエロビック</button>
+        <button type="button" class="chip" data-v="その他">その他</button>
+      </div>
+      <input id="procOther" style="display:none;margin-top:8px" placeholder="その他の精製を入力">
     </div>
     <div class="row" style="margin-top:10px">
       <div><label>生豆量 (g)</label><input id="green" type="number" inputmode="decimal" placeholder="250"></div>
@@ -122,6 +134,20 @@ window.onerror=function(m,s,l){var e=document.getElementById("err");if(e){e.styl
   ];
   var running=false,t0=0,elapsed=0,tick=null,lastBeep=0;
   var marks={},temps={};
+  var selProc="";
+  function getProc(){ if(selProc==="その他"){var o=$("procOther").value;return o?o:"その他";} return selProc; }
+  function setupProc(){
+    var chips=$("procChips").querySelectorAll(".chip");
+    for(var i=0;i<chips.length;i++){(function(c){
+      c.addEventListener("click",function(){
+        selProc=c.getAttribute("data-v");
+        var all=$("procChips").querySelectorAll(".chip");
+        for(var j=0;j<all.length;j++)all[j].classList.remove("sel");
+        c.classList.add("sel");
+        $("procOther").style.display=(selProc==="その他")?"block":"none";
+      });
+    })(chips[i]);}
+  }
 
   function renderEvents(){
     var wrap=$("events");wrap.innerHTML="";
@@ -172,8 +198,10 @@ window.onerror=function(m,s,l){var e=document.getElementById("err");if(e){e.styl
   function resetAll(){
     if(!confirm("今の入力を全部消して新しい焙煎を始める？"))return;
     stopRun();elapsed=0;marks={};temps={};
-    var ids=["bean","proc","green","room","heat","roasted","memo"];
+    var ids=["bean","green","room","heat","roasted","memo"];
     for(var i=0;i<ids.length;i++)$(ids[i]).value="";
+    selProc="";$("procOther").value="";$("procOther").style.display="none";
+    var pc=$("procChips").querySelectorAll(".chip");for(var k=0;k<pc.length;k++)pc[k].classList.remove("sel");
     $("timer").textContent="00:00";renderEvents();recalc();
   }
   function collect(){
@@ -181,7 +209,7 @@ window.onerror=function(m,s,l){var e=document.getElementById("err");if(e){e.styl
     var loss=(g&&r&&g>0)?((g-r)/g*100).toFixed(1):"";
     var drop=marks.drop,fc=marks.fc;
     var dtr=(drop!==undefined&&fc!==undefined&&drop>0)?((drop-fc)/drop*100).toFixed(1):"";
-    return {date:new Date().toLocaleString("ja-JP"),bean:$("bean").value,proc:$("proc").value,
+    return {date:new Date().toLocaleString("ja-JP"),bean:$("bean").value,proc:getProc(),
       green:nn(g),roasted:nn(r),loss:loss,room:$("room").value,heat:$("heat").value,
       bottom:nn(marks.bottom),bottomT:nn(temps.bottom),fc:nn(marks.fc),fcT:nn(temps.fc),
       drop:nn(marks.drop),dropT:nn(temps.drop),dtr:dtr,memo:$("memo").value};
@@ -215,7 +243,7 @@ window.onerror=function(m,s,l){var e=document.getElementById("err");if(e){e.styl
   $("csvBtn").addEventListener("click",exportCSV);
   $("green").addEventListener("input",recalc);
   $("roasted").addEventListener("input",recalc);
-  renderEvents();renderHist();recalc();
+  setupProc();renderEvents();renderHist();recalc();
 })();
 </script>
 </body>
