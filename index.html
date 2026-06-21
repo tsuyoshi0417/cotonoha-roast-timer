@@ -118,6 +118,23 @@
     font-size:19px;font-weight:700;color:var(--accent2)}
   .cuptotal{text-align:right;margin-top:8px;font-size:14px;color:var(--sub)}
   .cuptotal b{font-size:24px;color:var(--accent2);font-variant-numeric:tabular-nums}
+  /* 淹れ方ガイド（折りたたみ・スマホで見ながら淹れる）*/
+  details.guide{background:var(--panel);border:1px solid var(--line);border-radius:14px;margin-bottom:12px;overflow:hidden}
+  details.guide>summary{list-style:none;cursor:pointer;padding:14px;font-size:15px;font-weight:700;
+    color:var(--accent);background:var(--panel2);display:flex;align-items:center;justify-content:space-between;min-height:50px}
+  details.guide>summary::-webkit-details-marker{display:none}
+  details.guide>summary::after{content:"▼";font-size:12px;color:var(--sub)}
+  details.guide[open]>summary::after{content:"▲"}
+  .guidebody{padding:14px}
+  .gcond{display:flex;flex-wrap:wrap;gap:8px;margin-bottom:12px}
+  .gcond span{flex:1 1 calc(50% - 8px);background:var(--panel2);border:1px solid var(--line);border-radius:10px;
+    padding:10px;font-size:14px;text-align:center}
+  .gcond b{color:var(--accent2)}
+  .gsteps{margin:0 0 12px;padding-left:1.3em;font-size:14px;line-height:1.95}
+  .gsteps b{color:var(--accent2)}
+  .gtip{background:var(--panel2);border:1px solid var(--line);border-radius:10px;padding:10px;
+    font-size:13px;line-height:1.65;color:var(--sub)}
+  .gtip b{color:var(--ink)}
 
   /* 広い画面（iPad）＝中央寄せで読みやすい幅に保つ（焙煎前/後は縦1カラムのまま）*/
   @media (min-width:700px){
@@ -355,6 +372,24 @@
 
     <!-- カッピング -->
     <div class="subtab active" id="brewCup">
+      <details class="guide">
+        <summary>☕ カッピングの淹れ方（タップで開く）</summary>
+        <div class="guidebody">
+          <div class="gcond">
+            <span><b>粉</b>　11g（中挽き）</span>
+            <span><b>湯</b>　180ml</span>
+            <span><b>温度</b>　93℃</span>
+            <span><b>蒸らし</b>　4分</span>
+          </div>
+          <ol class="gsteps">
+            <li>カップに粉 → 湯を注いで <b>4分</b> 待つ（93℃＝沸かして火を止め約30秒）</li>
+            <li>表面の層をスプーンで崩して <b>香り</b> を嗅ぐ</li>
+            <li>浮いた泡（アク）を取る</li>
+            <li>少し冷めてから <b>すすって</b>（スラープ）下の6軸を点ける。<b>冷めても点ける</b></li>
+          </ol>
+          <div class="gtip">毎回この条件をそろえる＝<b>ブレない再現が先</b>。数値は <b>予測Brixを先に入れて</b> から実測（官能と数値は別物）。</div>
+        </div>
+      </details>
       <div class="panel">
         <label>対象（焙煎を選ぶ／無ければ豆名を手入力）</label>
         <select id="lotSelCup" style="margin-bottom:8px"></select>
