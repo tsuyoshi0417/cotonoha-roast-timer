@@ -135,6 +135,7 @@
   .gtip{background:var(--panel2);border:1px solid var(--line);border-radius:10px;padding:10px;
     font-size:13px;line-height:1.65;color:var(--sub)}
   .gtip b{color:var(--ink)}
+  .src{font-size:10px;color:var(--sub);opacity:.7;white-space:nowrap}
 
   /* 広い画面（iPad）＝中央寄せで読みやすい幅に保つ（焙煎前/後は縦1カラムのまま）*/
   @media (min-width:700px){
@@ -390,6 +391,35 @@
           <div class="gtip">毎回この条件をそろえる＝<b>ブレない再現が先</b>。数値は <b>予測Brixを先に入れて</b> から実測（官能と数値は別物）。</div>
         </div>
       </details>
+
+      <details class="guide">
+        <summary>🫧 味わいガイド（味を言葉にする）</summary>
+        <div class="guidebody">
+          <ol class="gsteps">
+            <li>テイスティングの順番＝①<b>見る</b>（色・透明感）→②口に含んで <b>舌で五味</b> →③<b>飲みながら鼻に抜ける香り</b> <span class="src">(CG-029)</span></li>
+            <li>風味＝<b>香り＋味(五味)＋口ざわり</b> の3層。五味＝<b>甘・酸・苦・旨・塩</b> <span class="src">(TS-054 / CS-034)</span></li>
+            <li>香りの大半は <b>"鼻に抜ける"</b>（飲んだ後の余韻を意識）＝レトロネーザル <span class="src">(CS-044)</span></li>
+          </ol>
+          <div class="gtip" style="margin-bottom:12px">フレーバーは <b>大枠の言葉から</b>。下の語をタップ＝下のメモに追記される（フレーバーホイールの大枠） <span class="src">(CG-030 / CS-037)</span></div>
+          <div class="chips" id="flavChips">
+            <button type="button" class="chip" data-v="花・フローラル">花・フローラル</button>
+            <button type="button" class="chip" data-v="柑橘">柑橘</button>
+            <button type="button" class="chip" data-v="ベリー">ベリー</button>
+            <button type="button" class="chip" data-v="果実">果実</button>
+            <button type="button" class="chip" data-v="甘い">甘い</button>
+            <button type="button" class="chip" data-v="はちみつ">はちみつ</button>
+            <button type="button" class="chip" data-v="キャラメル">キャラメル</button>
+            <button type="button" class="chip" data-v="チョコ">チョコ</button>
+            <button type="button" class="chip" data-v="ナッツ">ナッツ</button>
+            <button type="button" class="chip" data-v="カカオ">カカオ</button>
+            <button type="button" class="chip" data-v="焙煎・ロースト">焙煎・ロースト</button>
+            <button type="button" class="chip" data-v="スパイス">スパイス</button>
+            <button type="button" class="chip" data-v="ワイン(発酵)">ワイン(発酵)</button>
+          </div>
+          <div class="gtip" style="margin-top:12px">味覚は<b>才能でなく学習</b>で育つ。最初は分からなくて当たり前＝続ければ鋭くなる <span class="src">(HG-073)</span></div>
+        </div>
+      </details>
+
       <div class="panel">
         <label>対象（焙煎を選ぶ／無ければ豆名を手入力）</label>
         <select id="lotSelCup" style="margin-bottom:8px"></select>
@@ -1503,6 +1533,23 @@ window.onerror=function(m,s,l){var e=document.getElementById("err");if(e){e.styl
   $("csvBtn").addEventListener("click",exportCSV);
   /* カッピング */
   buildCupSliders();
+  /* 味わいガイドのフレーバーチップ：タップで #cupFlavor に「、」区切り追記（既存値は消さない）*/
+  (function(){
+    var box=$("flavChips"); if(!box)return;
+    var chips=box.querySelectorAll(".chip");
+    for(var i=0;i<chips.length;i++){(function(c){
+      c.addEventListener("click",function(){
+        var ta=$("cupFlavor"); if(!ta)return;
+        var word=c.getAttribute("data-v")||"";
+        var cur=ta.value||"";
+        var parts=cur.split("、");
+        var dup=false;
+        for(var j=0;j<parts.length;j++){ if(parts[j].trim()===word){dup=true;break;} }
+        if(dup)return; /* 既に入っていれば追記しない */
+        ta.value = cur.trim()==="" ? word : (cur.replace(/\s*[、,]\s*$/,"")+"、"+word);
+      });
+    })(chips[i]);}
+  })();
   var _cupSave=$("cupSaveBtn"); if(_cupSave)_cupSave.addEventListener("click",saveCupping);
   var _cupCsv=$("cupCsvBtn"); if(_cupCsv)_cupCsv.addEventListener("click",exportCupsCSV);
   var _cupLot=$("lotSelCup"); if(_cupLot)_cupLot.addEventListener("change",onCupLotChange);
