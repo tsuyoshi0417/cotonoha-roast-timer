@@ -424,7 +424,7 @@ CotonohaSound.bindUnlock();
 <body>
   <div class="err" id="err"></div>
   <h1 style="display:flex;align-items:center;gap:8px">
-    <span>言ノ葉 焙煎タイマー <span style="color:var(--sub);font-size:12px">v1.4</span></span>
+    <span>言ノ葉 焙煎タイマー <span style="color:var(--sub);font-size:12px">v1.5</span></span>
     <button type="button" id="soundToggle" title="音のオン/オフ" aria-label="音のオン/オフ"
       style="margin-left:auto;font-size:18px;line-height:1;background:var(--panel);border:1px solid var(--line);border-radius:10px;padding:6px 9px;cursor:pointer">🔊</button>
   </h1>
@@ -450,6 +450,14 @@ CotonohaSound.bindUnlock();
 
     <!-- ============ 焙煎前 ============ -->
     <div class="tab active" id="tabBefore">
+
+      <div class="panel" id="draftBanner" style="display:none;border-color:var(--accent2)">
+        <div class="note" id="draftBannerText" style="margin-bottom:8px"></div>
+        <div class="ctrl">
+          <button type="button" id="draftRestore" style="flex:1">焼きかけを復元</button>
+          <button type="button" id="draftDiscard" style="flex:.5;background:transparent;color:var(--sub)">破棄</button>
+        </div>
+      </div>
 
       <div class="panel" id="syncPanel" style="display:none">
         <div class="syncrow" style="display:flex;align-items:center;gap:10px;flex-wrap:wrap">
@@ -899,7 +907,7 @@ window.onerror=function(m,s,l){var e=document.getElementById("err");if(e){e.styl
     resetTime();marks.charge=0;chargeOffsetUsed=chargeOffsetSec();
     chargeStartJST=nowJST();chargeStartEpoch=nowEpoch();   // 投入＝焙煎開始の日本時間を確定
     logAudit("charge",{t:0,jst:chargeStartJST});
-    fetchWeather();                                        // 投入の瞬間の外気を捕まえる（福岡早良区・取れなくても続行）
+    fetchWeather();                                        // 投入の瞬間の外気を捕まえる（福岡・取れなくても続行）
     /* 投入温度を温度カーブの開始点(t=0)に置く＝カーブが投入温度から始まる。
        以降の現在温度＋3/＋5/＋10はその上に積む。temps.chargeにも入れて焙煎後の投入温度欄へ反映 */
     var ct=num("chargeTemp");
@@ -918,7 +926,7 @@ window.onerror=function(m,s,l){var e=document.getElementById("err");if(e){e.styl
     try{CotonohaSound.play("done");}catch(e){} // 投入0:00到達＝達成音（りん少し高め1打）
   }
   /* ---- 監査ログ・JST時刻・天気・拡張メタ（つよしさん要望2026-06-27）----
-     方針：①修正/取消をしても"修正前(prev)"も含め全操作を残す ②全部に日本時間(JST)の時刻 ③福岡早良区の外気/天気
+     方針：①修正/取消をしても"修正前(prev)"も含め全操作を残す ②全部に日本時間(JST)の時刻 ③福岡の外気/天気
      ④番頭/エージェントが必要な情報を任意キーで後付け保存できる拡張メタ(meta)。 */
   var auditLog=[], roastMeta={}, weather=null, chargeStartJST=null, chargeStartEpoch=null;
   function nowJST(){ try{ return new Date().toLocaleString("ja-JP",{timeZone:"Asia/Tokyo",hour12:false}); }catch(e){ return new Date().toLocaleString("ja-JP"); } }
@@ -928,17 +936,20 @@ window.onerror=function(m,s,l){var e=document.getElementById("err");if(e){e.styl
     try{ var e={ts:nowJST(),epoch:nowEpoch(),elapsed:Math.round(elapsed),type:type};
       if(detail){for(var k in detail){if(detail.hasOwnProperty(k))e[k]=detail[k];}}
       auditLog.push(e);
+      autosaveDraft(); // 全操作で即オートセーブ＝押し忘れても消えない
     }catch(_e){}
   }
   /* WMO天気コード→日本語 */
   function wmoDesc(c){var m={0:"快晴",1:"晴れ",2:"薄曇り",3:"曇り",45:"霧",48:"霧氷",51:"霧雨(弱)",53:"霧雨",55:"霧雨(強)",56:"着氷性の霧雨",57:"着氷性の霧雨(強)",61:"雨(弱)",63:"雨",65:"雨(強)",66:"着氷性の雨",67:"着氷性の雨(強)",71:"雪(弱)",73:"雪",75:"雪(強)",77:"霧雪",80:"にわか雨(弱)",81:"にわか雨",82:"にわか雨(激)",85:"にわか雪",86:"にわか雪(強)",95:"雷雨",96:"雷雨(雹)",99:"雷雨(雹・激)"};return m[c]||("コード"+c);}
-  /* 福岡市早良区(概略・区役所付近の座標)の現在の外気を取得。Open-Meteo＝APIキー不要・CORS許可・無料・商用可。失敗しても焙煎は止めない。*/
+  /* 福岡の現在の外気を取得。座標は自宅を晒さない【ダミー＝福岡市役所付近の公開地点】（つよしさん要望2026-06-27）。
+     福岡市内なら気象はほぼ同一＝外気影響の記録には十分。Open-Meteo＝APIキー不要・CORS許可・無料・商用可。失敗しても焙煎は止めない。*/
+  var WX_LAT=33.5902, WX_LON=130.4017; // ダミー座標（福岡市役所付近・自宅とは無関係）
   function fetchWeather(cb){
     try{
-      var url="https://api.open-meteo.com/v1/forecast?latitude=33.5503&longitude=130.3580&current=temperature_2m,apparent_temperature,relative_humidity_2m,weather_code,wind_speed_10m,pressure_msl&timezone=Asia%2FTokyo";
+      var url="https://api.open-meteo.com/v1/forecast?latitude="+WX_LAT+"&longitude="+WX_LON+"&current=temperature_2m,apparent_temperature,relative_humidity_2m,weather_code,wind_speed_10m,pressure_msl&timezone=Asia%2FTokyo";
       fetch(url).then(function(r){return r.json();}).then(function(d){
         if(d&&d.current){var c=d.current;
-          weather={place:"福岡市早良区(概略)",lat:33.5503,lon:130.3580,tempC:c.temperature_2m,feelsC:c.apparent_temperature,humidity:c.relative_humidity_2m,code:c.weather_code,desc:wmoDesc(c.weather_code),windKmh:c.wind_speed_10m,pressureHpa:c.pressure_msl,obsTime:c.time,fetchedJST:nowJST(),epoch:nowEpoch(),source:"open-meteo"};
+          weather={place:"福岡市(概略・ダミー座標)",lat:WX_LAT,lon:WX_LON,tempC:c.temperature_2m,feelsC:c.apparent_temperature,humidity:c.relative_humidity_2m,code:c.weather_code,desc:wmoDesc(c.weather_code),windKmh:c.wind_speed_10m,pressureHpa:c.pressure_msl,obsTime:c.time,fetchedJST:nowJST(),epoch:nowEpoch(),source:"open-meteo"};
           showWeather(); logAudit("weather",{tempC:weather.tempC,desc:weather.desc});
           if(cb)cb(weather);
         }
@@ -946,10 +957,92 @@ window.onerror=function(m,s,l){var e=document.getElementById("err");if(e){e.styl
     }catch(e){}
   }
   function showWeather(){
-    var s=weather?("🌡 外気温 "+weather.tempC+"℃（体感"+weather.feelsC+"）・"+weather.desc+"・湿度"+weather.humidity+"%　— 福岡早良区 "+(weather.fetchedJST||"")):"";
+    var s=weather?("🌡 外気温 "+weather.tempC+"℃（体感"+weather.feelsC+"）・"+weather.desc+"・湿度"+weather.humidity+"%　— 福岡 "+(weather.fetchedJST||"")):"";
     var a=$("weatherNote"); if(a)a.textContent=s;
     var b=$("weatherNoteAfter"); if(b)b.textContent=s;
   }
+
+  /* ============ オートセーブ＆エラー集積（つよしさん要望2026-06-27）============
+     ねらい：保存ボタンを押さなくても、豆を入れた瞬間から全部を自動で取り続ける＝消えない。
+     ①各操作(logAudit)ごと＋数秒ごとに、進行中の焙煎を localStorage に "ドラフト" 保存。
+     ②ログイン中はクラウド(RTDB roastDraft)にも最新ドラフトをミラー＝番頭が後から読める＝バグ/改修の材料。
+     ③JSエラー/未処理Promiseを捕まえて errors に集積（local＋cloud）。
+     ④起動時に焼きかけドラフトがあれば「復元」できる（押し忘れ/離脱/クラッシュからの復帰）。 */
+  var DRAFT_KEY="cotonoha_roast_draft", ERR_KEY="cotonoha_roast_errors", lastDraftMs=0;
+  function roastStarted(){ return ( ($("bean")&&$("bean").value.trim()!=="") || marks.charge!==undefined || series.length>0 || flames.length>0 ); }
+  function autosaveDraft(){
+    try{
+      if(!roastStarted()) return;
+      var d=collect(); d._draft=true; d._draftAt=nowEpoch(); d._draftJST=nowJST();
+      try{ localStorage.setItem(DRAFT_KEY, JSON.stringify(d)); }catch(e){}
+      try{ if(typeof Cloud!=="undefined" && Cloud.pushDraft) Cloud.pushDraft(d); }catch(e){}
+      lastDraftMs=nowEpoch();
+    }catch(e){}
+  }
+  function clearDraft(){
+    try{ localStorage.removeItem(DRAFT_KEY); }catch(e){}
+    try{ if(typeof Cloud!=="undefined" && Cloud.clearDraft) Cloud.clearDraft(); }catch(e){}
+    hideDraftBanner();
+  }
+  /* チップ選択の見た目を復元（data-v一致に .sel）*/
+  function selectChip(containerId,val){
+    var box=$(containerId); if(!box)return;
+    var cs=box.querySelectorAll(".chip");
+    for(var i=0;i<cs.length;i++){ if(cs[i].getAttribute("data-v")===val) cs[i].classList.add("sel"); else cs[i].classList.remove("sel"); }
+  }
+  /* ドラフト(=collect形式)を画面/内部状態に戻す。タイマーは止めたまま＝データを失わせないのが主目的。*/
+  function restoreDraft(d){
+    try{
+      if(!d)return;
+      $("bean").value=d.bean||"";
+      $("green").value=(d.green!=null&&d.green!=="")?d.green:"150";
+      $("room").value=(d.room!=null&&d.room!=="")?d.room:"20";
+      $("memo").value=d.memo||"";
+      selProc=d.proc||""; $("procOther").style.display=(selProc==="その他")?"block":"none"; if(selProc==="その他"&&d.procOther)$("procOther").value=d.procOther;
+      selHeat=d.heat||"";
+      marks={};temps={};
+      for(var i=0;i<EVENTS.length;i++){ var k=EVENTS[i].key;
+        if(d[k]!=null&&d[k]!=="") marks[k]=Number(d[k]);
+        if(d[k+"T"]!=null&&d[k+"T"]!=="") temps[k]=String(d[k+"T"]);
+      }
+      series=(d.curve&&d.curve.slice)?d.curve.slice():[];
+      flames=(d.flames&&d.flames.slice)?d.flames.slice():[];
+      tapLog=(d.taplog&&d.taplog.slice)?d.taplog.slice():[];
+      auditLog=(d.audit&&d.audit.slice)?d.audit.slice():[];
+      roastMeta=d.meta||{};
+      weather=d.weather||weather;
+      chargeStartJST=d.chargeJST||null; chargeStartEpoch=d.chargeEpoch||null;
+      var mx=0,kk; for(kk in marks){ if(marks.hasOwnProperty(kk)&&marks[kk]>mx)mx=marks[kk]; }
+      for(var s=0;s<series.length;s++){ if(series[s].t>mx)mx=series[s].t; }
+      elapsed=mx;
+      selectChip("procChips",selProc); selectChip("heatChips",selHeat);
+      $("timer").textContent=fmt(elapsed);
+      renderEvents();renderFlameLog();drawGraph();recalc();onBeanChange();updateLiveDtr();updateBakeWarn();showWeather();
+      logAudit("restore",{from:d._draftJST||null});
+      hideDraftBanner();
+    }catch(e){}
+  }
+  function showDraftBanner(d){
+    var el=$("draftBanner"); if(!el||!d)return;
+    var n=0,i; for(i=0;i<EVENTS.length;i++){ if(d[EVENTS[i].key]!=null&&d[EVENTS[i].key]!=="")n++; }
+    $("draftBannerText").textContent="前回の焼きかけが残っています（"+(d.bean||"豆名なし")+"・節目"+n+"個・"+(d._draftJST||"")+"）。";
+    el.style.display="block";
+    var rb=$("draftRestore"), db2=$("draftDiscard");
+    if(rb)rb.onclick=function(){ restoreDraft(d); };
+    if(db2)db2.onclick=function(){ clearDraft(); };
+  }
+  function hideDraftBanner(){ var el=$("draftBanner"); if(el)el.style.display="none"; }
+  /* JSエラー集積：バグ/不具合を取りこぼさず、後の改修改善の材料にする。*/
+  function logError(kind,info){
+    try{
+      var e={ts:nowJST(),epoch:nowEpoch(),kind:kind,info:info,ver:"1.5",ua:(navigator.userAgent||"").slice(0,160),url:location.href};
+      var arr=[]; try{ arr=JSON.parse(localStorage.getItem(ERR_KEY)||"[]"); }catch(_e){}
+      arr.unshift(e); if(arr.length>50)arr.length=50;
+      try{ localStorage.setItem(ERR_KEY, JSON.stringify(arr)); }catch(_e){}
+      try{ if(typeof Cloud!=="undefined" && Cloud.pushError) Cloud.pushError(e); }catch(_e){}
+    }catch(_e){}
+  }
+
   /* ---- 節目の順序まわり（会議2026-06-27＝逆転/DTR0の根治）---- */
   function evIndex(k){for(var i=0;i<EVENTS.length;i++){if(EVENTS[i].key===k)return i;}return -1;}
   function evName(k){for(var i=0;i<EVENTS.length;i++){if(EVENTS[i].key===k)return EVENTS[i].name;}return k;}
@@ -1153,6 +1246,7 @@ window.onerror=function(m,s,l){var e=document.getElementById("err");if(e){e.styl
   function loop(){
     elapsed=nowSec()-t0;$("timer").textContent=fmt(elapsed);drawGraph();updateLiveDtr();updateBakeWarn();
     if($("beep").checked){var b=Math.floor(elapsed/30);if(b>lastBeep){lastBeep=b;doBeep();}}
+    if(roastStarted() && (nowEpoch()-lastDraftMs)>4000){ autosaveDraft(); } // 操作が無くても数秒ごとに自動保管
   }
   function doBeep(){
     /* 30秒の刻み（任意・既定オフ）。安っぽい880Hz矩形波は廃止し、
@@ -1184,6 +1278,7 @@ window.onerror=function(m,s,l){var e=document.getElementById("err");if(e){e.styl
     series=[];flames=[];tempOps=[];tempRedo=[];$("curTemp").value="";$("chargeTemp").value="160";$("chargeOffset").value="30";
     $("timer").textContent="00:00";renderEvents();recalc();onBeanChange();updateLiveDtr();updateBakeWarn();
     renderFlameLog();
+    clearDraft();       // 「新しい焙煎を始める」＝焼きかけドラフトは破棄（local＋cloud）
     showTab("before");
   }
 
@@ -1222,7 +1317,7 @@ window.onerror=function(m,s,l){var e=document.getElementById("err");if(e){e.styl
     o.chargeEpoch=chargeStartEpoch;
     o.savedJST=nowJST();                   // 保存した日本時間
     o.savedEpoch=nowEpoch();
-    o.weather=weather;                     // 焙煎時の外気（福岡早良区・取れなければnull）
+    o.weather=weather;                     // 焙煎時の外気（福岡・取れなければnull）
     o.meta=roastMeta;                      // 拡張メタ＝番頭/エージェントが任意キーを後付け保存できる場所
     return o;
   }
@@ -1272,6 +1367,7 @@ window.onerror=function(m,s,l){var e=document.getElementById("err");if(e){e.styl
     try{localStorage.setItem("cotonoha_roasts",JSON.stringify(list));}catch(e){}
     renderHist();refreshBeanList();onBeanChange();
     Cloud.pushOne(rec); // ログイン中ならクラウドにもミラー（未ログイン時は何もしない）
+    clearDraft();       // 確定保存できた＝焼きかけドラフトは役目終了（local＋cloud削除）
     alert("保存した"+(Cloud.isOn()?"（この端末＋クラウド同期）":"（この端末内）")+"。バックアップはCSV出力で。");}
   function renderHist(){
     var list=getList(),h=$("hist");
@@ -1875,9 +1971,15 @@ window.onerror=function(m,s,l){var e=document.getElementById("err");if(e){e.styl
     function pushSyp(rec){ if(!ready||!uid||!rec)return; try{ db.ref("users/"+uid+"/siphon/"+safeKey(rec.id)).set(rec).catch(function(){}); }catch(e){} }
     function deleteSyp(id){ if(!ready||!uid||!id)return; try{ db.ref("users/"+uid+"/siphon/"+safeKey(id)).remove().catch(function(){}); }catch(e){} }
 
+    /* 進行中ドラフト（最新1件だけ上書き＝溜まらない）／JSエラー集積。番頭がread_rtdbで読める。*/
+    function pushDraft(d){ if(!ready||!uid||!d)return; try{ db.ref("users/"+uid+"/roastDraft").set(d).catch(function(){}); }catch(e){} }
+    function clearDraft(){ if(!ready||!uid)return; try{ db.ref("users/"+uid+"/roastDraft").remove().catch(function(){}); }catch(e){} }
+    function pushError(e){ if(!ready||!uid||!e)return; try{ db.ref("users/"+uid+"/roastErrors/"+safeKey(String(e.epoch))).set(e).catch(function(){}); }catch(_e){} }
     return { init:init, login:login, logout:logout, pushOne:pushOne, deleteOne:deleteOne,
              pushCup:pushCup, deleteCup:deleteCup, pushEsp:pushEsp, deleteEsp:deleteEsp,
-             pushSyp:pushSyp, deleteSyp:deleteSyp, isOn:function(){return !!(ready&&uid);} };
+             pushSyp:pushSyp, deleteSyp:deleteSyp,
+             pushDraft:pushDraft, clearDraft:clearDraft, pushError:pushError,
+             isOn:function(){return !!(ready&&uid);} };
   })();
 
   /* ---- 初期化 ---- */
@@ -1965,6 +2067,7 @@ window.onerror=function(m,s,l){var e=document.getElementById("err");if(e){e.styl
   });
   $("bean").addEventListener("input",onBeanChange);
   $("bean").addEventListener("change",onBeanChange);
+  $("bean").addEventListener("input",autosaveDraft);  // 豆名を入れた瞬間から自動保管が始まる
   window.addEventListener("resize",drawGraph);
   var _lin=$("loginBtn"); if(_lin)_lin.addEventListener("click",function(){Cloud.login();});
   var _lout=$("logoutBtn"); if(_lout)_lout.addEventListener("click",function(){Cloud.logout();});
@@ -2007,16 +2110,24 @@ window.onerror=function(m,s,l){var e=document.getElementById("err");if(e){e.styl
   showSub("cup");     // 淹れる・味わうの既定サブタブ＝カッピング
   showMode("roast");  // 既定モード＝焙煎する（既存挙動そのまま）
   Cloud.init(); // クラウド同期を起動（失敗してもここまでで本体は動いている）
-  fetchWeather(); // 起動時に福岡早良区の外気を一度取得して「焙煎前」に表示（投入時に取り直す）
-  /* 拡張メタの窓口：番頭/エージェントが「必要な情報を勝手に保存」できる。
-     例）window.cotonohaRoast.setMeta("豆ロット番号","XYZ") → 次に保存する焙煎レコードの meta に入り、監査ログにも残る。*/
+  fetchWeather(); // 起動時に福岡の外気を一度取得して「焙煎前」に表示（投入時に取り直す）
+  /* JSエラー/未処理Promiseを集積（バグ・改修改善の材料）*/
+  window.addEventListener("error",function(ev){ try{ logError("error",{msg:ev.message,src:ev.filename,line:ev.lineno,col:ev.colno}); }catch(e){} });
+  window.addEventListener("unhandledrejection",function(ev){ try{ logError("promise",{reason:String((ev.reason&&ev.reason.message)||ev.reason)}); }catch(e){} });
+  /* 起動時：前回の焼きかけドラフトがあれば「復元」を出す（押し忘れ/離脱/クラッシュからの復帰）*/
+  (function(){ try{ var raw=localStorage.getItem(DRAFT_KEY); if(raw){ var d=JSON.parse(raw); if(d&&(d.bean||d.charge!=null||(d.curve&&d.curve.length))) showDraftBanner(d); } }catch(e){} })();
+  /* 拡張メタ＋データ取りの窓口：番頭/エージェントが「必要な情報を勝手に保存」「集めたデータを読む」ができる。
+     例）window.cotonohaRoast.setMeta("豆ロット番号","XYZ") → 次に保存する焙煎レコードの meta に入り監査ログにも残る。*/
   window.cotonohaRoast={
     setMeta:function(k,v){ try{ roastMeta[String(k)]=v; logAudit("meta:set",{key:String(k)}); return true; }catch(e){ return false; } },
     getMeta:function(){ return roastMeta; },
     getAudit:function(){ return auditLog.slice(); },
     getWeather:function(){ return weather; },
     refreshWeather:fetchWeather,
-    version:"1.4"
+    getDraft:function(){ try{ return JSON.parse(localStorage.getItem(DRAFT_KEY)||"null"); }catch(e){ return null; } },
+    getErrors:function(){ try{ return JSON.parse(localStorage.getItem(ERR_KEY)||"[]"); }catch(e){ return []; } },
+    logEvent:function(type,detail){ try{ logAudit("ext:"+String(type),detail||{}); return true; }catch(e){ return false; } },
+    version:"1.5"
   };
 })();
 </script>
