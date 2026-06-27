@@ -77,6 +77,8 @@
   .ev button{padding:9px;font-size:13px;background:var(--accent);color:#ffffff;border:0}
   .ev input{padding:8px;font-size:15px;text-align:center}
   .ev.done{border-color:var(--accent)}
+  /* 次に押すべき節目を1つだけ金枠で強調＝誤タップ/見失いを源で減らす（会議2026-06-27）*/
+  .ev.next{border-color:var(--accent2);box-shadow:0 0 0 2px rgba(166,130,47,.22)}
   /* 焙煎中の節目＝大ボタン（温度欄なし・遠目で押せる）*/
   .events.big .ev{padding:16px;gap:8px}
   .events.big .ev b{font-size:16px}
@@ -422,7 +424,7 @@ CotonohaSound.bindUnlock();
 <body>
   <div class="err" id="err"></div>
   <h1 style="display:flex;align-items:center;gap:8px">
-    <span>言ノ葉 焙煎タイマー <span style="color:var(--sub);font-size:12px">v1.2</span></span>
+    <span>言ノ葉 焙煎タイマー <span style="color:var(--sub);font-size:12px">v1.3</span></span>
     <button type="button" id="soundToggle" title="音のオン/オフ" aria-label="音のオン/オフ"
       style="margin-left:auto;font-size:18px;line-height:1;background:var(--panel);border:1px solid var(--line);border-radius:10px;padding:6px 9px;cursor:pointer">🔊</button>
   </h1>
@@ -504,6 +506,9 @@ CotonohaSound.bindUnlock();
       <div class="panel">
         <label style="margin-bottom:8px">節目（タップ＝その時刻を即記録。温度は「焙煎後」で落ち着いて）</label>
         <div class="events big" id="events"></div>
+        <div class="ctrl" style="margin-top:8px">
+          <button type="button" id="undoMark" style="flex:1;color:var(--sub)">↶ 直前の節目を取消</button>
+        </div>
       </div>
 
       <div class="panel">
@@ -851,6 +856,7 @@ window.onerror=function(m,s,l){var e=document.getElementById("err");if(e){e.styl
         wrapA.appendChild(div);
       })(EVENTS[j]);}
     }
+    updateNextHint();
   }
   /* ---- 投入オフセット（カウントダウン）----
      投入の0:00を"本当の豆が回り出した瞬間"に合わせる。
@@ -904,8 +910,38 @@ window.onerror=function(m,s,l){var e=document.getElementById("err");if(e){e.styl
     if(cC){cC.div.className="ev done";cC.t.textContent=fmt(0);cC.btn.textContent="記録し直す";}
     var caC2=cardsA.charge;
     if(caC2){caC2.div.className="ev done";caC2.t.textContent=fmt(0);caC2.btn.textContent="記録し直す";}
-    recalc();updateLiveDtr();updateBakeWarn();
+    recalc();updateLiveDtr();updateBakeWarn();updateNextHint();
     try{CotonohaSound.play("done");}catch(e){} // 投入0:00到達＝達成音（りん少し高め1打）
+  }
+  /* ---- 節目の順序まわり（会議2026-06-27＝逆転/DTR0の根治）---- */
+  function evIndex(k){for(var i=0;i<EVENTS.length;i++){if(EVENTS[i].key===k)return i;}return -1;}
+  function evName(k){for(var i=0;i<EVENTS.length;i++){if(EVENTS[i].key===k)return EVENTS[i].name;}return k;}
+  /* 直前/直後の記録済み節目と矛盾していたら確認メッセージを返す（順番が逆＝押し間違いを"その場で"気づかせる。自動補正はしない＝実測を勝手にいじらない＝正直）*/
+  function orderConflictMsg(key,t){
+    var ki=evIndex(key),i,prevK=null,nextK=null;
+    for(i=ki-1;i>=0;i--){ if(marks[EVENTS[i].key]!==undefined){prevK=EVENTS[i].key;break;} }
+    for(i=ki+1;i<EVENTS.length;i++){ if(marks[EVENTS[i].key]!==undefined){nextK=EVENTS[i].key;break;} }
+    if(prevK!==null && marks[prevK]>t){ return evName(key)+"を "+fmt(t)+" に記録？\n直前の「"+evName(prevK)+"」("+fmt(marks[prevK])+")より前＝順番が逆です。押し間違い？\n（OK＝このまま記録／キャンセル＝中止）"; }
+    if(nextK!==null && marks[nextK]<t){ return evName(key)+"を "+fmt(t)+" に記録？\n後の「"+evName(nextK)+"」("+fmt(marks[nextK])+")より後＝順番が逆です。押し間違い？\n（OK＝このまま記録／キャンセル＝中止）"; }
+    return null;
+  }
+  /* 次に押すべき節目（記録順で最初の未記録）を1つだけ金枠で示す */
+  function updateNextHint(){
+    var nextKey=null,n;
+    for(n=0;n<EVENTS.length;n++){ if(marks[EVENTS[n].key]===undefined){nextKey=EVENTS[n].key;break;} }
+    for(n=0;n<EVENTS.length;n++){ var k=EVENTS[n].key,c=cards[k]; if(!c)continue;
+      if(marks[k]===undefined && k===nextKey){ c.div.classList.add("next"); }
+      else { c.div.classList.remove("next"); }
+    }
+  }
+  /* 直前の節目記録を1つ取り消す（手が塞がる局面で"今のミスを1つ戻す"が最速＝デザイン会議）。
+     温度カーブ(series)は触らない＝実測を勝手に消さない。tapLogを巻き戻して真の記録に戻す。*/
+  function undoLastMark(){
+    if(!tapLog.length){ return; }
+    var last=tapLog.pop();
+    if(last.prev===null||last.prev===undefined){ marks[last.key]=undefined; }
+    else { marks[last.key]=last.prev; }
+    renderEvents();drawGraph();recalc();updateLiveDtr();updateBakeWarn();
   }
   function mark(key){
     if(key==="charge"){
@@ -922,6 +958,14 @@ window.onerror=function(m,s,l){var e=document.getElementById("err");if(e){e.styl
       /* ②誤上書き防止：既に記録済みの節目を再タップ＝確認（誤タップで1ハゼ等の時刻が狂いDTRが壊れる事故の根治） */
       if(!firstTime){
         if(!confirm(enm+"を "+fmt(Math.round(elapsed))+" に記録し直す？\n元の記録 "+fmt(marks[key])+" は上書きされます。誤タップなら「キャンセル」。")){ return; }
+      }
+      var newT=Math.round(elapsed);
+      /* ④順序ガード：記録済みの節目と時系列が逆なら確認（1ハゼ終了<開始 等の逆転＝DTR0の元を根治）*/
+      var ordMsg=orderConflictMsg(key,newT);
+      if(ordMsg && !confirm(ordMsg)){ return; }
+      /* ⑤近接ガード：1ハゼ開始から30秒未満で煎り止め＝DTRがほぼ0になる事故を確認 */
+      if(key==="drop" && marks.fc!==undefined && (newT-marks.fc)>=0 && (newT-marks.fc)<30){
+        if(!confirm("1ハゼ開始から "+fmt(newT-marks.fc)+" で煎り止め？\nDTR（1ハゼ後の伸び）がほぼ0%になります。早すぎないか確認を。\n（OK＝記録／キャンセル＝中止）")){ return; }
       }
       /* ③バックログ：全タップを履歴に残す（誤操作があっても後から真の節目を復元できる＝保存にもCSVにも出す） */
       tapLog.push({key:key,name:enm,t:Math.round(elapsed),prev:(firstTime?null:marks[key])});
@@ -950,7 +994,7 @@ window.onerror=function(m,s,l){var e=document.getElementById("err");if(e){e.styl
     if(c){c.div.className="ev done";c.t.textContent=fmt(marks[key]);c.btn.textContent="記録し直す";}
     var ca=cardsA[key];
     if(ca){ca.div.className="ev done";ca.t.textContent=fmt(marks[key]);ca.btn.textContent="記録し直す";}
-    recalc();updateLiveDtr();updateBakeWarn();
+    recalc();updateLiveDtr();updateBakeWarn();updateNextHint();
   }
 
   /* ---- 最上位モード切替（焙煎する／淹れる・味わう）。DOMは消さずCSSで表示/非表示 ---- */
@@ -1794,6 +1838,7 @@ window.onerror=function(m,s,l){var e=document.getElementById("err");if(e){e.styl
   });
   $("startBtn").addEventListener("click",toggleRun);
   $("resetBtn").addEventListener("click",resetAll);
+  (function(){var ub=$("undoMark");if(ub)ub.addEventListener("click",undoLastMark);})();
   $("saveBtn").addEventListener("click",saveRoast);
   $("csvBtn").addEventListener("click",exportCSV);
   /* カッピング */
